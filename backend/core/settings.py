@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
 
     # First-party apps
+    'accounts.apps.AccountsConfig',
 ]
 
 MIDDLEWARE = [
