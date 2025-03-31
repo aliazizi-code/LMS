@@ -1,0 +1,34 @@
+from django.core.validators import RegexValidator
+from django.shortcuts import get_object_or_404
+from rest_framework import serializers
+
+from accounts.serializers import PhoneNumberField
+from accounts.models import User
+
+
+class PasswordField(serializers.CharField):
+    default_validators = [
+        RegexValidator(
+            regex=r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#\$%\^&\*\(\)-_\+=\{\}:\;"<>,\.?\/]).{8,}$',
+            message="Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one digit, and one special character."
+        )
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super(PasswordField, self).__init__(required=True, write_only=True, *args, **kwargs)
+
+
+class BasePasswordSerializer(serializers.Serializer):
+    password = PasswordField()
+
+
+class ChangePasswordSerializer(BasePasswordSerializer):
+    old_password = serializers.CharField(write_only=True)
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    phone = PhoneNumberField(max_length=13)
+
+    def validate_phone(self, value):
+        get_object_or_404(User, phone=value)
+        return value
