@@ -53,14 +53,12 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'mptt',
     'taggit',
+    'autoslug',
 
     # First-party apps
     'accounts.apps.AccountsConfig',
-<<<<<<< HEAD
     'blog.apps.BlogConfig',
-=======
     'courses.apps.CoursesConfig',
->>>>>>> 55148f1 (add courses app to setting.INSTALLED_APPS)
 ]
 
 MIDDLEWARE = [
