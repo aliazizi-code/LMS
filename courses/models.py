@@ -68,6 +68,8 @@ class Price(models.Model):
     def save(self, *args, **kwargs):
         if timezone.now() < self.discount_expires_at:
             self.final_price = get_discounted_price(self.main_price, self.discount_percentage)
+        else:
+            self.final_price = self.main_price
             # todo: use celery for reset discount_percentage
         super().save(*args, **kwargs)
 
