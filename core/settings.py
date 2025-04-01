@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -45,8 +46,15 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    "rest_framework_simplejwt.token_blacklist",
+    'imagekit',
+    "phonenumber_field",
+    'drf_spectacular',
+    'django_celery_beat',
+    'mptt',
 
     # First-party apps
+    'accounts.apps.AccountsConfig',
 ]
 
 MIDDLEWARE = [
@@ -79,12 +87,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
+# DATABASES
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
@@ -96,7 +99,7 @@ DATABASES = {
     }
 }
 
-# Cache configuration
+# CACHES
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -146,13 +149,65 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+AUTH_USER_MODEL = 'accounts.User'
+
 # Media
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR / 'media')
 
 # REST_FRAMEWORK
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "accounts.authentication.JWTCookieAuthentication",
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# Simple JWT
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    # Auth
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    # Auth Cookie
+    "AUTH_COOKIE_ACCESS": "access_token",
+    "AUTH_COOKIE_REFRESH": "refresh_token",
+    "AUTH_COOKIE_DOMAIN": None,  # ".example.com" or None for standard domain cookie
+    "AUTH_COOKIE_SECURE": False,  # Whether the auth cookies should be secure (https:// only).
+    "AUTH_COOKIE_HTTP_ONLY": True,
+    "AUTH_COOKIE_SAMESITE": "Lax",
+    # The flag restricting cookie leaks on cross-site requests. 'Lax', 'Strict' or None to disable the flag.
+    "AUTH_COOKIE_REFRESH_PATH": "/accounts/auth/",
+}
+
+# IMAGES
+IMAGE_SIZES = {
+    "DEFAULT_ALL_IMAGE_SIZE_LIMIT": 1024,  # KB
+}
+
+# RATELIMIT
+RATELIMIT_USE_CACHE = 'default'
+
+# CELERY
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
+# SPECTACULAR
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'TPC',
+    'DESCRIPTION': ('This document covers all endpoints, '
+                    'request/response models, and interaction guidelines for the TPC API.'),
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+# OTP
+OTP = {
+    "EXPIRATION_TIME_SECONDS": 60,  # 1 minutes
+
+    "VALID_WINDOW": 1,
+    # VALID_WINDOW defines how many time steps are valid for OTP
+    # verification Each step is 30 seconds, and values from 0 to 5 are allowed.
 }
