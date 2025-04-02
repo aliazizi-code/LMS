@@ -1,13 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils.translation.trans_null import gettext_lazy as _
-from phonenumber_field.modelfields import PhoneNumberField
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 from mptt.models import MPTTModel, TreeForeignKey
 
 from .managers import UserManager
-from utils import validate_image_size, get_upload_to
+from utils import validate_image_size, get_upload_to, PhoneNumberField
 
 
 def avatar_get_upload_to(instance, filename):
@@ -21,11 +20,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         null=True,
         verbose_name=_('Email Address')
     )
-    phone = PhoneNumberField(
-        unique=True,
-        region='IR',
-        verbose_name=_('Phone Number')
-    )
+    phone = PhoneNumberField(verbose_name=_('Phone Number'))
     email_verify_token = models.SlugField(
         max_length=72,
         blank=True,
