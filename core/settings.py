@@ -48,12 +48,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     "rest_framework_simplejwt.token_blacklist",
     'imagekit',
-    "phonenumber_field",
     'drf_spectacular',
     'django_celery_beat',
     'mptt',
     'taggit',
-    'autoslug',
 
     # First-party apps
     'accounts.apps.AccountsConfig',
