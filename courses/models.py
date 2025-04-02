@@ -1,4 +1,3 @@
-from autoslug import AutoSlugField
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -9,7 +8,7 @@ from imagekit.processors import ResizeToFill
 from taggit.managers import TaggableManager
 
 from accounts.models import User
-from utils import get_upload_to, validate_image_size, get_discounted_price
+from utils import get_upload_to, validate_image_size, get_discounted_price, AutoSlugField
 
 
 def get_upload_path(instance, filename):
@@ -22,8 +21,8 @@ class Course(models.Model):
         IN_PROGRESS = 'in_progress', _('In Progress')
         UPCOMING = 'upcoming', _('Upcoming')
 
-    title = models.CharField(max_length=100)
-    slug = AutoSlugField(populate_from='title')
+    title = models.CharField(max_length=200)
+    slug = AutoSlugField(source_field='title')
     description = models.TextField()
     tags = TaggableManager()
     # comments = models.ManyToManyField('Comment', blank=True)
@@ -76,7 +75,7 @@ class Price(models.Model):
 
 class Season(models.Model):
     title = models.CharField(max_length=100)
-    slug = AutoSlugField(populate_from='title')
+    slug = AutoSlugField(source_field='title')
     course = models.ForeignKey(Course, related_name='seasons', on_delete=models.CASCADE)
     description = models.TextField(blank=True, null=True)
 
