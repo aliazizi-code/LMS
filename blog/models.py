@@ -3,6 +3,8 @@ from mptt.models import MPTTModel, TreeForeignKey
 from autoslug import AutoSlugField
 from django.utils.translation.trans_null import gettext_lazy as _
 from accounts.models import User
+from markdownfield.models import MarkdownField, RenderedMarkdownField
+from markdownfield.validators import VALIDATOR_STANDARD
 
 
 class ArticleCategory(MPTTModel):
