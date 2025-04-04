@@ -26,7 +26,7 @@ class LearningLevel(models.Model):
     
     
     def __str__(self):
-        return self.name
+        return f"{self.name} {self.level_number}"
     
     class Meta:
         verbose_name = _('سطح آموزشی')
@@ -42,7 +42,9 @@ class LearningPath(models.Model):
     )
     end_level = models.ForeignKey(
         LearningLevel, related_name='learning_paths_end',
-        on_delete=models.CASCADE, verbose_name=_('پایان سطح آموزشی')
+        on_delete=models.CASCADE, verbose_name=_('پایان سطح آموزشی'),
+        blank=True,
+        null=True
     )
     description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
     is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
@@ -50,7 +52,7 @@ class LearningPath(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
     
     def clean(self):
-        if self.start_level.level_number >= self.end_level.level_number:
+        if self.end_level and self.start_level.level_number >= self.end_level.level_number:
             raise ValidationError(_('سطح شروع باید کمتر از سطح پایان باشد.'))
     
     def __str__(self):
@@ -84,6 +86,12 @@ class CourseCategory(MPTTModel):
     def __str__(self):
         return self.title
     
+    def clean(self):
+        if self.parent:
+            level = self.parent.get_level() + 1
+            if level > 2:
+                raise ValidationError(_('حداکثر تعداد سطوح دسته بندی ۲ سطح می‌باشد.'))
+    
     class Meta:
         verbose_name = _('دسته بندی دوره')
         verbose_name_plural = _('دسته بندی های دوره')
@@ -93,11 +101,10 @@ class CourseCategory(MPTTModel):
 
 class Course(models.Model):
     class STATUS(models.TextChoices):
-        COMPLETED = 'تمام شده', _('تمام شده')
-        IN_PROGRESS = 'در حال پیشرفت', _('در حال پیشرفت')
-        UPCOMING = 'در حال انتظار', _('در حال انتظار')
-        CANCELLED = 'کنسل شده', _('کنسل شده')
-        ARCHIVED = 'بایگانی شده', _('بایگانی شده')
+        COMPLETED = 'اتمام-یافته', _('اتمام-یافته')
+        IN_PROGRESS = 'در-حال-تکمیل', _('در-حال-تکمیل')
+        UPCOMING = 'به-زودی-شروع-میشود', _('در-حال-انتظار')
+        CANCELLED = 'کنسل-شده', _('کنسل-شده')
 
     title = models.CharField(max_length=200, verbose_name=_('عنوان دوره'))
     slug = AutoSlugField(source_field='title', verbose_name=_('آدرس دوره'))
@@ -202,13 +209,13 @@ class Price(models.Model):
         verbose_name=_('درصد تخفیف')
     )
     final_price = models.PositiveIntegerField(verbose_name=_('قیمت نهایی'))
-    discount_expires_at = models.DateTimeField(verbose_name=_('تاریخ انقضای تخفیف'))
+    discount_expires_at = models.DateTimeField(blank=True, null=True,verbose_name=_('تاریخ انقضای تخفیف'))
 
     def __str__(self):
         return f'price {self.course.title}: {self.main_price}'
 
     def save(self, *args, **kwargs):
-        if timezone.now() < self.discount_expires_at:
+        if self.discount_percentage:
             self.final_price = get_discounted_price(self.main_price, self.discount_percentage)
         else:
             self.final_price = self.main_price
