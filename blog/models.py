@@ -20,3 +20,6 @@ class ArticleCategory(MPTTModel):
         ordering = ['name']
         db_table = 'article_categories'
 
+    class MPTTMeta:
+        order_insertion_by = ['name']
+    
