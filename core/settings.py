@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'mptt',
     'taggit',
     'django_filters',
+    'markdownfield',
 
     # First-party apps
     'accounts.apps.AccountsConfig',
