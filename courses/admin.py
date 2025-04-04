@@ -51,7 +51,7 @@ class CourseAdmin(admin.ModelAdmin):
     
     def thumbnail(self, obj):
         if obj.banner:
-            return format_html(f'<img src="{obj.banner.url}" style="width: 80px; height: auto;" />')
+            return format_html(f'<img src="{obj.banner.url}" style="width: 100px; height: auto;" />')
         return "No Image"
 
     display_price.short_description = "Price"
