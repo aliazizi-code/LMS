@@ -3,6 +3,7 @@ asgiref==3.8.1
 asttokens==3.0.0
 attrs==25.3.0
 billiard==4.2.1
+bleach==6.2.0
 celery==5.4.0
 click==8.1.8
 click-didyoumean==0.3.1
@@ -16,6 +17,7 @@ django-autoslug==1.9.9
 django-celery-beat==2.7.0
 django-imagekit==5.0.0
 django-js-asset==3.1.2
+django-markdownfield==0.11.0
 django-mptt==0.16.0
 django-phonenumber-field==8.0.0
 django-ratelimit==4.1.0
@@ -33,6 +35,7 @@ jedi==0.19.2
 jsonschema==4.23.0
 jsonschema-specifications==2024.10.1
 kombu==5.5.1
+Markdown==3.7
 matplotlib-inline==0.1.7
 parso==0.8.4
 pexpect==4.9.0
@@ -53,11 +56,14 @@ PyYAML==6.0.2
 redis==5.2.1
 referencing==0.36.2
 rpds-py==0.24.0
+shortuuid==1.0.13
 six==1.17.0
 sqlparse==0.5.3
 stack-data==0.6.3
+tinycss2==1.4.0
 traitlets==5.14.3
 tzdata==2025.1
 uritemplate==4.1.1
 vine==5.1.0
 wcwidth==0.2.13
+webencodings==0.5.1
