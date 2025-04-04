@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'django_celery_beat',
     'mptt',
+    'markdownfield',
 
     # First-party apps
     'accounts.apps.AccountsConfig',
