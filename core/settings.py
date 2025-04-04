@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 from datetime import timedelta
 
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'mptt',
     'taggit',
+    'django_filters',
 
     # First-party apps
     'accounts.apps.AccountsConfig',
