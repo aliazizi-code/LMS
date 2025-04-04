@@ -55,6 +55,7 @@ INSTALLED_APPS = [
 
     # First-party apps
     'accounts.apps.AccountsConfig',
+    'blog.apps.BlogConfig',
 ]
 
 MIDDLEWARE = [
