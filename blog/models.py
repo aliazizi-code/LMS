@@ -2,6 +2,7 @@ from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
 from autoslug import AutoSlugField
 from django.utils.translation.trans_null import gettext_lazy as _
+from accounts.models import User
 
 
 class ArticleCategory(MPTTModel):
@@ -12,7 +13,6 @@ class ArticleCategory(MPTTModel):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
 
     class Meta:
         verbose_name = _('Article Category')
@@ -25,3 +25,5 @@ class ArticleCategory(MPTTModel):
     
     def __str__(self):
         return self.name
+    
+
