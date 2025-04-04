@@ -70,6 +70,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
     USERNAME_FIELD = 'phone'
+    REQUIRED_FIELDS = []
 
     class Meta:
         verbose_name = _('User')
@@ -98,7 +99,6 @@ class JobCategory(MPTTModel):
     class Meta:
         verbose_name = 'Job Category'
         verbose_name_plural = 'Job Categories'
-        # db_table = 'job_category'
         ordering = ['title']
 
 
@@ -112,7 +112,6 @@ class Job(models.Model):
     class Meta:
         verbose_name = 'Job'
         verbose_name_plural = 'Jobs'
-        # db_table = 'job'
         ordering = ['title']
 
 
@@ -133,7 +132,9 @@ class UserProfile(models.Model):
     job = models.ForeignKey(
         Job,
         on_delete=models.CASCADE,
-        related_name='profiles'
+        related_name='profiles',
+        blank=True,
+        null=True
     )
     avatar = models.ImageField(
         upload_to=avatar_get_upload_to,
