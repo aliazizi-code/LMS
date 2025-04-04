@@ -53,18 +53,19 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         )
 
 
-class CategoryListSerializer(serializers.ModelSerializer):
-    has_children = serializers.SerializerMethodField()
+class CategoryWithChildrenSerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
     parent_slug = serializers.SerializerMethodField()
+    
     class Meta:
         model = CourseCategory
-        fields = ['title', 'slug', 'has_children', 'parent_slug']
-    
-    def get_has_children(self, obj):
-        return obj.children.exists()
-    
+        fields = ['title', 'slug', 'parent_slug', 'children']
+        
     def get_parent_slug(self, obj):
         return obj.parent.slug if obj.parent else None
+
+    def get_children(self, obj):
+        return CategoryWithChildrenSerializer(obj.get_children(), many=True).data
 
 
 
