@@ -21,19 +21,19 @@ class CourseAdmin(admin.ModelAdmin):
         (None, {
             'fields': ('title', 'slug', 'description', 'short_description', 'tags', 'category', 'learning_path', 'course_duration'),
         }),
-        ('Media', {
+        ('رسانه', {
             'fields': ('banner', 'thumbnail'),
         }),
-        ('Status', {
+        ('وضعیت', {
             'fields': ('status', 'is_published', 'is_deleted'),
         }),
-        ('Price Information', {
+        ('اطلاعات قیمت', {
             'fields': ('display_price',),
         }),
-        ('Statistics', {
+        ('آمار', {
             'fields': ('count_students', 'count_lessons', 'rating'),
         }),
-        ('Additional Information', {
+        ('اطلاعات اضافی', {
             'fields': ('teacher', 'start_date', 'end_date', 'created_at', 'updated_at'),
         }),
     )
