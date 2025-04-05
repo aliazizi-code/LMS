@@ -8,7 +8,7 @@ from taggit.managers import TaggableManager
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 from django.conf import settings
-from utils import get_upload_to, validate_image_size
+from utils import get_upload_to, validate_image_size, AutoSlugField
 
 
 def get_upload_image(instance, filename):
@@ -17,7 +17,7 @@ def get_upload_image(instance, filename):
 
 class ArticleCategory(MPTTModel):
     name = models.CharField(max_length=100)
-    slug = AutoSlugField(populate_from=name, unique=True)
+    slug = AutoSlugField(source_field='name')
     description = models.TextField()
     parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     is_active = models.BooleanField(default=True)
@@ -46,7 +46,7 @@ class Article(models.Model):
 
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='articles')
     title = models.CharField(max_length=250)
-    slug = AutoSlugField(populate_from=title, unique=True)
+    slug = AutoSlugField(source_field='title')
     image = models.ImageField(
         upload_to=get_upload_image,
         validators=validate_image_size,
