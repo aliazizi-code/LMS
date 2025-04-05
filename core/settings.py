@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 from datetime import timedelta
 
@@ -48,13 +49,15 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     "rest_framework_simplejwt.token_blacklist",
     'imagekit',
-    "phonenumber_field",
     'drf_spectacular',
     'django_celery_beat',
     'mptt',
+    'taggit',
+    'django_filters',
 
     # First-party apps
     'accounts.apps.AccountsConfig',
+    'courses.apps.CoursesConfig',
 ]
 
 MIDDLEWARE = [
@@ -159,6 +162,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR / 'media')
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "accounts.authentication.JWTCookieAuthentication",
+    ),
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
