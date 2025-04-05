@@ -49,7 +49,7 @@ class Article(models.Model):
     slug = AutoSlugField(source_field='title')
     image = models.ImageField(
         upload_to=get_upload_image,
-        validators=validate_image_size,
+        validators=[validate_image_size],
 
     )
     # image_thumbnail need to fix
