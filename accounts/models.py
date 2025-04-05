@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils.translation.trans_null import gettext_lazy as _
+from django.core.exceptions import ValidationError
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 from mptt.models import MPTTModel, TreeForeignKey
@@ -18,53 +19,46 @@ class User(AbstractBaseUser, PermissionsMixin):
         unique=True,
         blank=True,
         null=True,
-        verbose_name=_('Email Address')
+        verbose_name=_('آدرس ایمیل')
     )
-    phone = PhoneNumberField(verbose_name=_('Phone Number'))
+    phone = PhoneNumberField(verbose_name=_('شماره موبایل'))
     email_verify_token = models.SlugField(
         max_length=72,
         blank=True,
         null=True,
-        verbose_name=_('Email Verify Token')
+        verbose_name=_('کد تایید ایمیل')
     )
     first_name = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        verbose_name=_('First name')
+        verbose_name=_('نام')
     )
     last_name = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        verbose_name=_('Last name')
+        verbose_name=_('نام خانوادگی')
     )
     is_active = models.BooleanField(
         default=True,
-        verbose_name=_('Active Status')
+        verbose_name=_('وضعیت فعال بودن/نبودن')
     )
     is_admin = models.BooleanField(
         default=False,
-        verbose_name=_('Admin Status')
+        verbose_name=_('ادمین بودن/نبودن')
     )
     is_staff = models.BooleanField(
         default=False,
-        verbose_name=_('Staff Status')
-    )
-    permissions = models.CharField(
-        max_length=255,
-        default='',
-        blank=True,
-        null=True,
-        verbose_name=_('User Permissions')
+        verbose_name=_('وضعیت کارمند بودن/نبودن')
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name=_('Account Creation Date')
+        verbose_name=_('تاریخ ثبت نام')
     )
     updated_at = models.DateTimeField(
         auto_now=True,
-        verbose_name=_('Last Update Date')
+        verbose_name=_('تاریخ ویرایش')
     )
 
     objects = UserManager()
@@ -73,8 +67,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     class Meta:
-        verbose_name = _('User')
-        verbose_name_plural = _('Users')
+        verbose_name = _('کاربر')
+        verbose_name_plural = _('کاربران')
         ordering = ['created_at']
         db_table = 'custom_user'
 
@@ -89,58 +83,74 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class JobCategory(MPTTModel):
-    title = models.CharField(max_length=200)
-    parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
-    is_active = models.BooleanField(default=True)
+    title = models.CharField(max_length=200, verbose_name=_('عنوان'))
+    parent = TreeForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='children',
+        verbose_name=_('والد')
+    )
+    is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
 
     def __str__(self):
         return self.title
+    
+    def clean(self):
+        if self.parent:
+            level = self.parent.get_level() + 1
+            if level > 2:
+                raise ValidationError(_('حداکثر تعداد سطوح دسته بندی ۲ سطح می‌باشد.'))
 
     class Meta:
-        verbose_name = 'Job Category'
-        verbose_name_plural = 'Job Categories'
+        verbose_name = _('دسته بندی شغل')
+        verbose_name_plural = _('دسته بندی شغل ها')
         ordering = ['title']
 
 
 class Job(models.Model):
-    title = models.CharField(max_length=200)
-    category = models.ManyToManyField(JobCategory, related_name='jobs')
+    title = models.CharField(max_length=200, verbose_name=_('عنوان'))
+    category = models.ManyToManyField(JobCategory, related_name='jobs', verbose_name=_('دسته بندی'))
 
     def __str__(self):
         return self.title
 
     class Meta:
-        verbose_name = 'Job'
-        verbose_name_plural = 'Jobs'
+        verbose_name = _('شغل')
+        verbose_name_plural = _('شغل ها')
         ordering = ['title']
 
 
 class UserProfile(models.Model):
     class Gender(models.TextChoices):
-        male = 'M', _('Male')
-        female = 'F', _('Female')
+        male = 'M', _('مرد')
+        female = 'F', _('زن')
 
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
-        related_name='profiles'
+        related_name='profiles',
+        verbose_name=_('کاربر')
     )
     bio = models.TextField(
         blank=True,
-        null=True
+        null=True,
+        verbose_name=_('بیوگرافی')
     )
     job = models.ForeignKey(
         Job,
         on_delete=models.CASCADE,
         related_name='profiles',
         blank=True,
-        null=True
+        null=True,
+        verbose_name=_('شغل')
     )
     avatar = models.ImageField(
         upload_to=avatar_get_upload_to,
         validators=[validate_image_size],
         blank=True,
-        null=True
+        null=True,
+        verbose_name=_('عکس پروفایل')
     )
     avatar_thumbnail = ImageSpecField(
         source='avatar',
@@ -150,18 +160,20 @@ class UserProfile(models.Model):
     )
     age = models.PositiveSmallIntegerField(
         blank=True,
-        null=True
+        null=True,
+        verbose_name=_('سن')
     )
     gender = models.CharField(
         max_length=1,
         choices=Gender.choices,
         blank=True,
-        null=True
+        null=True,
+        verbose_name=_('جنسیت')
     )
 
     class Meta:
-        verbose_name = _('User Profile')
-        verbose_name_plural = _('Users Profile')
+        verbose_name = _('پروفایل کاربر')
+        verbose_name_plural = _('پروفایل کاربران')
         ordering = ['-id']
         db_table = 'user_profile'
 
