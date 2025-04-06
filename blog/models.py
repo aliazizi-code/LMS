@@ -61,7 +61,6 @@ class Article(models.Model):
     ) 
     category = models.ManyToManyField(ArticleCategory, related_name="articles", db_table='article_category_link')
     content = MarkdownField(rendered_field='content_rendered', validator=VALIDATOR_STANDARD)
-    content_rendered = RenderedMarkdownField() 
     short_description = models.TextField()
     tags = TaggableManager()
     status = models.CharField(
