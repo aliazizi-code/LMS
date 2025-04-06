@@ -2,8 +2,6 @@ from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
 from autoslug import AutoSlugField
 from django.utils.translation.trans_null import gettext_lazy as _
-from markdownfield.models import MarkdownField, RenderedMarkdownField
-from markdownfield.validators import VALIDATOR_STANDARD
 from taggit.managers import TaggableManager
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
@@ -60,7 +58,7 @@ class Article(models.Model):
         options={'quality': 80}
     ) 
     category = models.ManyToManyField(ArticleCategory, related_name="articles", db_table='article_category_link')
-    content = MarkdownField(rendered_field='content_rendered', validator=VALIDATOR_STANDARD)
+    content = models.TextField()
     short_description = models.TextField()
     tags = TaggableManager()
     status = models.CharField(
