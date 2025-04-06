@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'mptt',
     'markdownfield',
+    'taggit',
 
     # First-party apps
     'accounts.apps.AccountsConfig',
