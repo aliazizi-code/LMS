@@ -17,7 +17,6 @@ django-autoslug==1.9.9
 django-celery-beat==2.7.0
 django-imagekit==5.0.0
 django-js-asset==3.1.2
-django-markdownfield==0.11.0
 django-mptt==0.16.0
 django-phonenumber-field==8.0.0
 django-ratelimit==4.1.0
