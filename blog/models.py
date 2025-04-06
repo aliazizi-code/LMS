@@ -75,3 +75,6 @@ class Article(models.Model):
         verbose_name_plural = _('Articles')
         ordering = ['-created_at']
         db_table = 'article'
+
+    def __str__(self):
+        return self.title
