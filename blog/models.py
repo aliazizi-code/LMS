@@ -59,7 +59,7 @@ class Article(models.Model):
         format='jpg',
         options={'quality': 80}
     ) 
-    category = models.ManyToManyField(ArticleCategory, related_name="articles")
+    category = models.ManyToManyField(ArticleCategory, related_name="articles", db_table='article_category_link')
     content = MarkdownField(rendered_field='content_rendered', validator=VALIDATOR_STANDARD)
     content_rendered = RenderedMarkdownField() 
     short_description = models.TextField()
