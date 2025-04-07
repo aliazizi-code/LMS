@@ -7,6 +7,8 @@ from django.utils.translation import gettext_lazy as _
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 from taggit.managers import TaggableManager
+from django.contrib.postgres.search import SearchVectorField, SearchVector
+from django.contrib.postgres.indexes import GinIndex
 from mptt.models import MPTTModel, TreeForeignKey
 
 from utils import get_upload_to, validate_image_size, get_discounted_price, AutoSlugField
@@ -59,7 +61,9 @@ class LearningPath(models.Model):
         return f'{self.start_level} - {self.end_level}'
     
     def title(self):
-        return f'سطح از {self.start_level} تا {self.end_level}'
+        if self.end_level:
+            return f'سطح از {self.start_level.name} تا {self.end_level.name}'
+        return f"سطح {self.start_level.name}"
     
     class Meta:
         verbose_name = _('مسیر آموزشی')
@@ -70,8 +74,8 @@ class LearningPath(models.Model):
 
 class CourseCategory(MPTTModel):
     title = models.CharField(max_length=200, verbose_name=_('عنوان دسته بندی'))
+    slug = models.SlugField(max_length=250, verbose_name=_('آدرس دسته بندی'))
     description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
-    slug = AutoSlugField(source_field='title', verbose_name=_('آدرس دسته بندی'))
     parent = TreeForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -101,24 +105,25 @@ class CourseCategory(MPTTModel):
 
 class Course(models.Model):
     class STATUS(models.TextChoices):
-        COMPLETED = 'اتمام-یافته', _('اتمام-یافته')
-        IN_PROGRESS = 'در-حال-تکمیل', _('در-حال-تکمیل')
-        UPCOMING = 'به-زودی-شروع-میشود', _('در-حال-انتظار')
-        CANCELLED = 'کنسل-شده', _('کنسل-شده')
+        COMPLETED = 'COMPLETED', _('اتمام یافته')
+        IN_PROGRESS = 'IN_PROGRESS', _('در حال تکمیل')
+        UPCOMING = 'UPCOMING', _('در حال انتظار')
+        CANCELLED = 'CANCELLED', _('کنسل شده')
 
     title = models.CharField(max_length=200, verbose_name=_('عنوان دوره'))
-    slug = AutoSlugField(source_field='title', verbose_name=_('آدرس دوره'))
+    slug = AutoSlugField(source_field='title',verbose_name=_('آدرس دوره'))
+    sv = SearchVectorField(null=True, editable=False)
     description = models.TextField(verbose_name=_('توضیحات'))
     short_description = models.TextField(verbose_name=_('توضیحات کوتاه'))
-    category = models.ManyToManyField(
+    categories = models.ManyToManyField(
         CourseCategory, related_name='courses',
         verbose_name=_('دسته بندی دوره')
     )
-    tags = TaggableManager(verbose_name=_('برچسب ها'), blank=True)
+    tags = TaggableManager(verbose_name=_('برچسب ها'))
     # comments = models.ManyToManyField('Comment', blank=True)
     learning_path = models.ForeignKey(
         LearningPath, related_name='courses',
-        on_delete=models.CASCADE, blank=True, null=True,
+        on_delete=models.CASCADE,
         verbose_name=_('سطح مسیر آموزشی')
     )
     banner = models.ImageField(
@@ -129,13 +134,12 @@ class Course(models.Model):
     banner_thumbnail = ImageSpecField(
         source='banner',
         processors=[ResizeToFill(120, 120)],
-        format='jpeg',
+        format='JPEG',
         options={'quality': 80},
     )
     status = models.CharField(
         max_length=30,
         choices=STATUS.choices,
-        default=STATUS.UPCOMING,
         verbose_name=_('وضعیت دوره')
     )
     teacher = models.ForeignKey(
@@ -143,16 +147,6 @@ class Course(models.Model):
         related_name='courses',
         on_delete=models.CASCADE,
         verbose_name=_('مدرس دوره')
-    )
-    rating = models.DecimalField(
-        max_digits=3,
-        decimal_places=1,
-        default=0,
-        validators=[
-            MinValueValidator(1),
-            MaxValueValidator(5)
-        ],
-        verbose_name=_('امتیاز')
     )
     count_students = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد دانشجویان'))
     count_lessons = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد درس ها'))
@@ -169,17 +163,16 @@ class Course(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
 
     def clean(self):
-        if self.pk is None:
-            return
-
-        if self.status == self.STATUS.UPCOMING:
-            raise ValidationError("Existing courses cannot be set to 'Upcoming'.")
-
-        if self.status != self.STATUS.UPCOMING and self.start_date:
-            raise ValidationError("Start date must be empty if the status is not 'Upcoming'.")
+        errors = {}
 
         if self.status == self.STATUS.UPCOMING and not self.start_date:
-            raise ValidationError("Start date must be provided if the status is 'Upcoming'.")
+            errors['start_date'] = "تاریخ شروع باید ارائه شود اگر وضعیت 'UPCOMING' است."
+
+        if self.status != self.STATUS.UPCOMING and self.start_date:
+            errors['start_date'] = "تاریخ شروع باید خالی باشد اگر وضعیت 'UPCOMING' نیست."
+
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -193,6 +186,9 @@ class Course(models.Model):
         verbose_name = _('دوره')
         verbose_name_plural = _('دوره ها')
         unique_together = (('title', 'slug'),)
+        indexes = [
+            GinIndex(fields=['sv']),
+        ]
 
 
 class Price(models.Model):
@@ -230,9 +226,9 @@ class Price(models.Model):
 
 class Season(models.Model):
     title = models.CharField(max_length=100, verbose_name=_('عنوان فصل'))
-    slug = AutoSlugField(source_field='title', verbose_name=_('آدرس فصل'))
     description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
     is_published = models.BooleanField(default=False, verbose_name=_('وضعیت انتشار'))
+    is_deleted = models.BooleanField(default=False, verbose_name=_('وضعیت حذف'))
     season_duration = models.DurationField(
         default=timezone.timedelta(0),
         verbose_name=_('مدت زمان فصل')
@@ -252,7 +248,6 @@ class Season(models.Model):
         ordering = ['title']
         verbose_name = _('فصل')
         verbose_name_plural = _('فصل ها')
-        unique_together = (('title', 'slug'),)
 
 
 class Lesson(models.Model):
