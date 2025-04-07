@@ -16,7 +16,8 @@ class AutoSlugField(models.SlugField):
 
     def pre_save(self, model_instance, add):
         if self.source_field:
-            value = getattr(model_instance, self.source_field)
-            slug = slugify(value)
-            setattr(model_instance, self.attname, slug)
+            value = getattr(model_instance, self.source_field, None)
+            if value:
+                slug = slugify(value)
+                setattr(model_instance, self.attname, slug)
         return super().pre_save(model_instance, add)
