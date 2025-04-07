@@ -155,7 +155,7 @@ class UserProfile(models.Model):
     avatar_thumbnail = ImageSpecField(
         source='avatar',
         processors=[ResizeToFill(120, 120)],
-        format='jpg',
+        format='JPEG',
         options={'quality': 80}
     )
     age = models.PositiveSmallIntegerField(
