@@ -1,5 +1,6 @@
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
+from django.shortcuts import get_object_or_404, get_list_or_404
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -101,12 +102,17 @@ class SeasonView(viewsets.ViewSet):
     
     def list(self, request):
         course_slug = request.query_params.get('course_slug')
-        queryset = get_object_or_404(
+
+        if not course_slug:
+            return Response({"detail": "شناسه دوره ضروری است."}, status=status.HTTP_400_BAD_REQUEST)
+
+        queryset = get_list_or_404(
             Season,
-            course__teacher=request.user,
             course__slug=course_slug,
+            course__teacher=request.user,
             is_deleted=False,
         )
+
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
