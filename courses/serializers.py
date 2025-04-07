@@ -86,10 +86,11 @@ class LearningLevelSerializer(serializers.ModelSerializer):
 
 
 class SeasonSerializer(serializers.ModelSerializer):
-    course_slug = serializers.CharField(source='course.slug', read_only=True)
+    course_slug = serializers.CharField(source='course.slug')
     class Meta:
         model = Season
-        fields = ('title', 'description', 'course_slug', 'is_published')
+        fields = ('id', 'title', 'description', 'course_slug', 'is_published')
+        read_only_fields = ('id', 'course_slug')
     
     def create(self, validated_data):
         validated_data.pop('is_published')
