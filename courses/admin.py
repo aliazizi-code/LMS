@@ -8,18 +8,18 @@ from mptt.admin import DraggableMPTTAdmin
 
 class CourseAdmin(admin.ModelAdmin):
     list_display = ('title', 'display_price', 'status', 'is_published', 'is_deleted', 'thumbnail')
-    readonly_fields = ('slug', 'created_at', 'updated_at', 'display_price', 'count_students', 'count_lessons', 'rating', 'thumbnail', 'course_duration')
+    readonly_fields = ('slug', 'created_at', 'updated_at', 'display_price', 'count_students', 'count_lessons', 'thumbnail', 'course_duration', 'sv')
     list_per_page = 20
-    list_filter = ('status', 'is_published', 'is_deleted', 'teacher', 'category', 'start_date', 'end_date', 'learning_path')
+    list_filter = ('status', 'is_published', 'is_deleted', 'teacher', 'categories', 'start_date', 'end_date', 'learning_path')
     search_fields = ('title', 'description', 'short_description', 'tags')
     autocomplete_fields = ('teacher',)
-    filter_horizontal = ('category',)
+    filter_horizontal = ('categories',)
     ordering = ('-created_at',)
     actions = ['publish_courses', 'unpublish_courses']
 
     fieldsets = (
         (None, {
-            'fields': ('title', 'slug', 'description', 'short_description', 'tags', 'category', 'learning_path', 'course_duration'),
+            'fields': ('title', 'slug', 'description', 'short_description', 'tags', 'categories', 'learning_path', 'course_duration'),
         }),
         ('رسانه', {
             'fields': ('banner', 'thumbnail'),
@@ -31,11 +31,14 @@ class CourseAdmin(admin.ModelAdmin):
             'fields': ('display_price',),
         }),
         ('آمار', {
-            'fields': ('count_students', 'count_lessons', 'rating'),
+            'fields': ('count_students', 'count_lessons'),
         }),
         ('اطلاعات اضافی', {
             'fields': ('teacher', 'start_date', 'end_date', 'created_at', 'updated_at'),
         }),
+        (None, {
+            'fields' : ('sv',)
+        })
     )
 
     def display_price(self, obj):
@@ -96,14 +99,29 @@ class PriceAdmin(admin.ModelAdmin):
 
 class CourseCategoryAdmin(DraggableMPTTAdmin):
     list_display = ("tree_actions",'indented_title', 'is_active')
-    readonly_fields = ('slug', 'created_at',)
+    autocomplete_fields = ('parent',)
+    readonly_fields = ('created_at',)
     list_filter = ('is_active',)
     search_fields = ('title',)
 
 
+class SeasonAdmin(admin.ModelAdmin):
+    list_display = ('title', 'course', 'is_published', 'is_deleted')
+    search_fields = ('title',)
+    list_filter = ('is_published', 'course', 'is_deleted')
+    autocomplete_fields = ('course',)
+    readonly_fields = ('id', 'season_duration')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('id', 'title', 'description', 'season_duration', 'course', 'is_published', 'is_deleted')
+        }),
+    )
+
+
 admin.site.register(models.Course, CourseAdmin)
 admin.site.register(models.Price, PriceAdmin)
-admin.site.register(models.Season)
+admin.site.register(models.Season, SeasonAdmin)
 admin.site.register(models.Lesson)
 admin.site.register(models.CourseCategory, CourseCategoryAdmin)
 admin.site.register(models.LearningLevel)
