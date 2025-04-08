@@ -8,7 +8,7 @@ class ArticleCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ArticleCategory
-        fields = ['name', 'slug', 'parent', 'childrens']
+        fields = ['name', 'slug', 'parent_slug', 'childrens']
 
     def get_parent_slug(self, obj):
         return obj.parent.slug if obj.parent else None
