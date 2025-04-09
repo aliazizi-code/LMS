@@ -10,22 +10,13 @@ class CourseFilter(filters.FilterSet):
             ('created_at', 'created'),
         )
     )
-    category = filters.CharFilter(method='filter_by_category')
     is_free = filters.BooleanFilter(method='filter_by_is_free')
     price = filters.RangeFilter(field_name='prices__final_price')
     is_discount = filters.BooleanFilter(method='filter_by_discount')
     level = filters.CharFilter(method='filter_by_learning_path')
     status = filters.ChoiceFilter(field_name='status', choices=Course.STATUS.choices)
-    
+    category = filters.CharFilter(method='filter_by_category')
 
-
-    def filter_by_category(self, queryset, name, value):
-        try:
-            category = CourseCategory.objects.get(slug=value)
-            descendants = category.get_descendants(include_self=True)
-            return queryset.filter(category__in=descendants)
-        except CourseCategory.DoesNotExist:
-            return queryset.none()
 
     def filter_by_is_free(self, queryset, name, value):
         if value:
@@ -69,6 +60,14 @@ class CourseFilter(filters.FilterSet):
         except ValueError:
             return queryset
     
+    def filter_by_category(self, queryset, name, value):
+        try:
+            category = CourseCategory.objects.get(slug=value)
+            descendants = category.get_descendants(include_self=True)
+            return queryset.filter(categories__in=descendants)
+        except CourseCategory.DoesNotExist:
+            return queryset.none()
+    
     class Meta:
         model = Course
-        fields = ['order_by', 'category', 'is_free', 'price', 'is_discount', 'level', 'status']
+        fields = ['order_by', 'is_free', 'price', 'is_discount', 'level', 'status', 'category']
