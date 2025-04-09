@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 from mptt.models import MPTTModel, TreeForeignKey
+from taggit.managers import TaggableManager
 
 from .managers import UserManager
 from utils import validate_image_size, get_upload_to, PhoneNumberField
@@ -179,3 +180,95 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return str(self.user)
+
+
+class SocialLink(models.Model):
+    class SocialMediaType(models.TextChoices):
+        telegram = 'telegram', _('تلگرام')
+        instagram = 'instagram', _('اینستاگرام')
+        linkedin = 'linkedin', _('لینکدین')
+        x = 'x', _('ایکس')
+        threads = 'threads', _('تردز')
+        facebook = 'facebook', _('فیسبوک')
+        youtube = 'youtube', _('یوتیوب')
+        github = 'github', _('گیت‌هاب')
+        gitlab = 'gitlab', _('گیت‌لب')
+    
+    social_media_type = models.CharField(
+        max_length=20,
+        choices=SocialMediaType.choices,
+        verbose_name=_('نوع شبکه اجتماعی'),
+    )
+    url = models.URLField(
+        unique=True,
+        verbose_name=_('آدرس'),
+    )
+    employee_profile = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name='social_links',
+        verbose_name=_('پروفایل کارمند'),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ثبت نام')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
+    
+    def __str__(self):
+        return self.title
+    
+    def clean(self):
+        pass
+        
+    
+    class Meta:
+        verbose_name = _('لینک اجتماعی')
+        verbose_name_plural = _('لینک های اجتماعی')
+        ordering = ['employee_profile', 'id']
+        permissions = (
+            ("can_teacher", "Can teacher"),
+            ("can_employee", "Can employee"),
+            # ("can_author", "Can author"),
+        )
+
+
+class EmployeeProfile(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='employee_profile',
+        verbose_name=_('کاربر')
+    )
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        verbose_name=_('نام کاربری'),
+    )
+    skills = TaggableManager(
+        blank=True,
+        verbose_name=_('مهارت ها'),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ثبت نام')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
+    
+    def __str__(self):
+        return str(self.user)
+
+    class Meta:
+        verbose_name = _('پروفایل کارمند')
+        verbose_name_plural = _('پروفایل کارمندان')
+        permissions = (
+            ("can_teacher", "Can teacher"),
+            ("can_employee", "Can employee"),
+            # ("can_author", "Can author"),
+        )
