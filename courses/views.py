@@ -16,40 +16,35 @@ class CourseListPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class CourseListView(viewsets.ModelViewSet):
+class UsersCourseListViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.filter(
         is_published=True,
         is_deleted=False,
         categories__is_active=True,
     ).distinct()
-    serializer_class = CourseListSerializer
+    serializer_class = UsersCourseListSerializer
     pagination_class = CourseListPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = CourseFilter
     
 
-class CourseDetailView(generics.RetrieveAPIView):
+class UserCourseDetailView(generics.RetrieveAPIView):
     queryset = Course.objects.filter(
         is_published=True,
         is_deleted=False,
         categories__is_active=True,
     ).distinct()
-    serializer_class = CourseDetailSerializer
+    serializer_class = UserCourseDetailSerializer
     lookup_field = 'slug'
 
 
-class CategoryListView(generics.ListAPIView):
-    serializer_class = CategoryWithChildrenSerializer
+class CategoryHierarchyListView(generics.ListAPIView):
+    serializer_class = CategoryHierarchySerializer
     queryset = CourseCategory.objects.filter(parent=None, is_active=True).distinct()
+  
 
-
-class LearningLevelView(generics.ListAPIView):
-    serializer_class = LearningLevelSerializer
-    queryset = LearningLevel.objects.filter(is_active=True)
-    
-
-class CourseByTeacherListView(generics.ListAPIView):
-    serializer_class = CourseByTeacherListSerializer
+class TeacherCoursesListListView(generics.ListAPIView):
+    serializer_class = TeacherCoursesSerializer
     permission_classes = [IsTeacher]
     pagination_class = CourseListPagination
     filter_backends = (DjangoFilterBackend,)
@@ -62,8 +57,8 @@ class CourseByTeacherListView(generics.ListAPIView):
         ).distinct()
 
 
-class CourseByTeacherViewSet(viewsets.ViewSet):
-    serializer_class = CourseByTeacherSerializer
+class TeacherCourseDetailManagementViewSet(viewsets.ViewSet):
+    serializer_class = TeacherCourseDetailManagementSerializer
     pagination_class = CourseListPagination
     permission_classes = [IsTeacher]
     
@@ -96,8 +91,8 @@ class CourseByTeacherViewSet(viewsets.ViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class SeasonView(viewsets.ViewSet):
-    serializer_class = SeasonSerializer
+class TeacherSeasonManagementViewSet(viewsets.ViewSet):
+    serializer_class = TeacherSeasonManagementSerializer
     permission_classes = [IsTeacher]
     
     def list(self, request):
@@ -117,12 +112,9 @@ class SeasonView(viewsets.ViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def create(self, request):
-        course_slug = request.query_params.get('course_slug')
-        course = get_object_or_404(Course, slug=course_slug, teacher=request.user, is_deleted=False)
-        
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save(course_id=course.pk)
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -146,3 +138,37 @@ class SeasonView(viewsets.ViewSet):
         queryset.save()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TeacherLessonManagementViewSet(viewsets.ViewSet):
+    serializer_class = TeacherLessonManagementSerializer
+    permission_classes = [IsTeacher]
+    
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def retrieve(self, request, pk=None):
+        queryset = get_object_or_404(Lesson, pk=pk, course__teacher=request.user, is_deleted=False)
+        serializer = self.serializer_class(queryset)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def partial_update(self, request, pk=None):
+        queryset = get_object_or_404(Lesson, pk=pk, course__teacher=request.user, is_deleted=False)
+        serializer = self.serializer_class(queryset, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def destroy(self, request, pk=None):
+        queryset = get_object_or_404(Lesson, pk=pk, course__teacher=request.user, is_deleted=False)
+        queryset.is_deleted = True
+        queryset.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
