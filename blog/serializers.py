@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import *
+from taggit.serializers import TagListSerializerField, TaggitSerializer
 
 
 class ArticleCategorySerializer(serializers.ModelSerializer):
@@ -17,10 +18,10 @@ class ArticleCategorySerializer(serializers.ModelSerializer):
         return ArticleCategorySerializer(obj.childrens, many=True).data
     
 
-class ArticleSerializer(serializers.ModelSerializer):
+class ArticleSerializer(TaggitSerializer, serializers.ModelSerializer):
+    tags = TagListSerializerField()
     category = serializers.SlugRelatedField(
         many=True,
         slug_field='slug',
         queryset=ArticleCategory.objects.filter(is_active=True)
     )
-
