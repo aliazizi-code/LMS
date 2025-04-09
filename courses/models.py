@@ -21,7 +21,6 @@ def get_upload_path(instance, filename):
 class LearningLevel(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name=_('نام سطح آموزشی'))
     level_number = models.PositiveSmallIntegerField(unique=True, verbose_name=_('شماره سطح آموزشی'))
-    description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
     is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
@@ -48,7 +47,6 @@ class LearningPath(models.Model):
         blank=True,
         null=True
     )
-    description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
     is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
@@ -65,6 +63,10 @@ class LearningPath(models.Model):
             return f'سطح از {self.start_level.name} تا {self.end_level.name}'
         return f"سطح {self.start_level.name}"
     
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+    
     class Meta:
         verbose_name = _('مسیر آموزشی')
         verbose_name_plural = _('مسیرهای آموزشی')
@@ -75,7 +77,6 @@ class LearningPath(models.Model):
 class CourseCategory(MPTTModel):
     title = models.CharField(max_length=200, verbose_name=_('عنوان دسته بندی'))
     slug = models.SlugField(max_length=250, verbose_name=_('آدرس دسته بندی'))
-    description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
     parent = TreeForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -95,6 +96,10 @@ class CourseCategory(MPTTModel):
             level = self.parent.get_level() + 1
             if level > 2:
                 raise ValidationError(_('حداکثر تعداد سطوح دسته بندی ۲ سطح می‌باشد.'))
+            
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
     
     class Meta:
         verbose_name = _('دسته بندی دوره')
@@ -137,6 +142,14 @@ class Course(models.Model):
         format='JPEG',
         options={'quality': 80},
     )
+    url_video = models.URLField(
+        max_length=200,
+        blank=True,
+        null=True,
+        unique=True,
+        verbose_name=_("لینک ویدیو"),
+        help_text=_("این فیلد برای ویدیوهای کوتاه و آشنایی با دوره یا معرفی استاد است.")
+    )
     status = models.CharField(
         max_length=30,
         choices=STATUS.choices,
@@ -156,6 +169,7 @@ class Course(models.Model):
     )
     count_comments = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد نظرات'))
     is_published = models.BooleanField(default=False, verbose_name=_('وضعیت انتشار'))
+    has_seasons = models.BooleanField(default=False, verbose_name=_('فصل بندی شده/نشده'))
     is_deleted = models.BooleanField(default=False, verbose_name=_('وضعیت حذف'))
     start_date = models.DateTimeField(blank=True, null=True, verbose_name=_('تاریخ شروع دوره'))
     end_date = models.DateTimeField(blank=True, null=True, verbose_name=_('تاریخ پایان دوره'))
@@ -173,6 +187,10 @@ class Course(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    def toggle_seasoning(self):
+        self.has_seasons = not self.has_seasons
+        self.save()
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -210,14 +228,6 @@ class Price(models.Model):
     def __str__(self):
         return f'price {self.course.title}: {self.main_price}'
 
-    def save(self, *args, **kwargs):
-        if self.discount_percentage:
-            self.final_price = get_discounted_price(self.main_price, self.discount_percentage)
-        else:
-            self.final_price = self.main_price
-            # todo: use celery for reset discount_percentage
-        super().save(*args, **kwargs)
-
     class Meta:
         verbose_name = _('قیمت')
         verbose_name_plural = _('قیمت ها')
@@ -239,13 +249,26 @@ class Season(models.Model):
         on_delete=models.CASCADE,
         verbose_name=_('دوره')
     )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
     
 
     def __str__(self):
         return self.title
+    
+    # def clean(self):
+    #     active_lessons = self.course.lessons.filter(is_deleted=False)
+
+    #     if active_lessons.exists():
+    #         if any(lesson.season is None for lesson in active_lessons):
+    #             raise ValidationError("تمام درس‌ها باید در فصل‌ها قرار داشته باشند.")
+            
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     class Meta:
-        ordering = ['title']
+        ordering = ['created_at', 'id']
         verbose_name = _('فصل')
         verbose_name_plural = _('فصل ها')
 
@@ -253,13 +276,14 @@ class Season(models.Model):
 class Lesson(models.Model):
     title = models.CharField(max_length=100, verbose_name=_('عنوان درس'))
     description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
-    url_video = models.URLField(verbose_name=_('آدرس ویدیو'))
-    url_files = models.URLField(blank=True, null=True, verbose_name=_('آدرس فایل ها'))
+    url_video = models.URLField(verbose_name=_('آدرس ویدیو'), unique=True)
+    url_files = models.URLField(blank=True, null=True, unique=True, verbose_name=_('آدرس فایل ها'))
     is_published = models.BooleanField(default=False, verbose_name=_('وضعیت انتشار'))
+    is_deleted = models.BooleanField(default=False, verbose_name=_('وضعیت حذف'))
     season = models.ForeignKey(
         Season,
         related_name='lessons',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True, blank=True,
         verbose_name=_('فصل')
     )
@@ -269,11 +293,25 @@ class Lesson(models.Model):
         on_delete=models.CASCADE,
         verbose_name=_('دوره')
     )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
 
     def __str__(self):
         return self.title
+    
+    # def clean(self):
+    #     if self.course.has_seasons:
+    #         if self.season is None:
+    #             raise ValidationError("درس باید در یک فصل قرار داشته باشد.")
+    #     else:
+    #         if self.season is not None:
+    #             raise ValidationError("اگر دوره فصل بندی نشده است، درس باید بدون فصل باشد.")
 
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+    
     class Meta:
-        ordering = ['title']
+        ordering = ['created_at', 'id']
         verbose_name = _('درس')
         verbose_name_plural = _('درس ها')
