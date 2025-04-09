@@ -15,3 +15,12 @@ class ArticleCategorySerializer(serializers.ModelSerializer):
     
     def get_childrens(self, obj):
         return ArticleCategorySerializer(obj.childrens, many=True).data
+    
+
+class ArticleSerializer(serializers.ModelSerializer):
+    category = serializers.SlugRelatedField(
+        many=True,
+        slug_field='slug',
+        queryset=ArticleCategory.objects.filter(is_active=True)
+    )
+
