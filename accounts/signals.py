@@ -2,7 +2,7 @@ from django.db.models.signals import post_save, post_migrate
 from django.contrib.auth.models import Permission, Group
 from django.contrib.contenttypes.models import ContentType
 from django.dispatch import receiver
-from accounts.models import JobCategory
+from accounts.models import JobCategory, EmployeeProfile
 from courses.models import Course
 # from blog.models import Article # (uncomment if needed)
 
@@ -53,10 +53,11 @@ def create_permissions(sender, **kwargs):
         teacher_group.permissions.add(teacher_permission)
 
         # Create Employee Permission
+        content_type_employee = ContentType.objects.get_for_model(EmployeeProfile)
         employee_permission, _ = Permission.objects.get_or_create(
             codename='can_employee',
             name='Can employee',
-            content_type=None,
+            content_type=content_type_employee,
         )
         employee_group, _ = Group.objects.get_or_create(name='Employee')
         employee_group.permissions.add(employee_permission)
