@@ -1,31 +1,47 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
+from django.urls import reverse
+from django.http import HttpResponseRedirect
+from django.urls import path
 
 from . import models
 from mptt.admin import DraggableMPTTAdmin
 
 
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ('title', 'display_price', 'status', 'is_published', 'is_deleted', 'thumbnail')
-    readonly_fields = ('slug', 'created_at', 'updated_at', 'display_price', 'count_students', 'count_lessons', 'thumbnail', 'course_duration', 'sv')
-    list_per_page = 20
-    list_filter = ('status', 'is_published', 'is_deleted', 'teacher', 'categories', 'start_date', 'end_date', 'learning_path')
+    list_display = (
+        'title', 'display_price', 'status',
+        'is_published', 'is_deleted', 'thumbnail',
+    )
+    readonly_fields = (
+        'slug', 'created_at', 'updated_at', 'display_price',
+        'count_students', 'count_lessons', 'thumbnail',
+        'course_duration', 'sv'
+    )
+    list_filter = (
+        'status', 'is_published', 'is_deleted', 'teacher',
+        'categories', 'start_date', 'end_date', 'learning_path',
+    )
     search_fields = ('title', 'description', 'short_description', 'tags')
     autocomplete_fields = ('teacher',)
     filter_horizontal = ('categories',)
     ordering = ('-created_at',)
     actions = ['publish_courses', 'unpublish_courses']
+    list_per_page = 20
 
     fieldsets = (
         (None, {
-            'fields': ('title', 'slug', 'description', 'short_description', 'tags', 'categories', 'learning_path', 'course_duration'),
+            'fields': (
+                'title', 'slug', 'description', 'short_description',
+                'tags', 'categories', 'learning_path', 'course_duration',
+            ),
         }),
         ('رسانه', {
-            'fields': ('banner', 'thumbnail'),
+            'fields': ('banner', 'thumbnail', 'url_video'),
         }),
         ('وضعیت', {
-            'fields': ('status', 'is_published', 'is_deleted'),
+            'fields': ('status', 'is_published', 'is_deleted', 'has_seasons'),
         }),
         ('اطلاعات قیمت', {
             'fields': ('display_price',),
@@ -106,17 +122,34 @@ class CourseCategoryAdmin(DraggableMPTTAdmin):
 
 
 class SeasonAdmin(admin.ModelAdmin):
-    list_display = ('title', 'course', 'is_published', 'is_deleted')
+    list_display = ('id', 'title', 'course', 'is_published', 'is_deleted')
     search_fields = ('title',)
     list_filter = ('is_published', 'course', 'is_deleted')
     autocomplete_fields = ('course',)
-    readonly_fields = ('id', 'season_duration')
+    readonly_fields = ('id', 'season_duration', 'course_slug', 'course_id')
     
     fieldsets = (
         (None, {
-            'fields': ('id', 'title', 'description', 'season_duration', 'course', 'is_published', 'is_deleted')
+            'fields': (
+                'id', 'course_slug', 'course_id',
+                'title', 'description', 'season_duration',
+                'course', 'is_published', 'is_deleted',
+            )
         }),
     )
+    
+    def course_slug(self, obj):
+        return obj.course.slug if obj.course else None
+    
+    def course_id(self, obj):
+        if obj.course:
+            url = reverse('admin:courses_course_change', args=[obj.course.id])
+            return format_html('<a href="{}" target="_blank">{}</a>', url, obj.course.id)
+        return None
+
+
+    course_id.short_description = "Course ID"
+    course_slug.short_description = "Course Slug"
 
 
 admin.site.register(models.Course, CourseAdmin)
