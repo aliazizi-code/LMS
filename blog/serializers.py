@@ -25,3 +25,12 @@ class ArticleSerializer(TaggitSerializer, serializers.ModelSerializer):
         slug_field='slug',
         queryset=ArticleCategory.objects.filter(is_active=True)
     )
+    status = serializers.ChoiceField(choices=Article.STATUS.choices,default=Article.STATUS.IN_REVIEW, read_only=True)
+
+    class Meta:
+        model = Article
+        fields = (
+            'author','title', 'slug', 'image', 'image_thumbnail',
+            'category', 'content', 'short_description', 'tags',
+            'status', 'created_at', 'updated_at', 'published_at',
+        )
