@@ -18,7 +18,7 @@ from utils import (
 
 
 def avatar_get_upload_to(instance, filename):
-    return get_upload_to(instance, filename, "users/avatar")
+    return get_upload_to(instance.pk, filename, "users/avatar")
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -263,7 +263,7 @@ class SocialLink(models.Model):
     employee_profile = models.ForeignKey(
         EmployeeProfile,
         on_delete=models.CASCADE,
-        related_name='social_links',
+        related_name='social_link',
         verbose_name=_('پروفایل کارمند'),
     )
     created_at = models.DateTimeField(
