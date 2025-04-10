@@ -1,7 +1,10 @@
 from rest_framework import serializers
-from accounts.models import UserProfile, User
+from accounts.models import UserProfile, User, EmployeeProfile, SocialLink
 from accounts.serializers import RequestOTPSerializer, VerifyOTPSerializer
+from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404
 from utils import verify_otp_change_phone
+from taggit.serializers import TagListSerializerField, TaggitSerializer
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -48,3 +51,57 @@ class ChangePhoneVerifySerializer(VerifyOTPSerializer):
         if not verify_otp_change_phone(phone, value):
             raise serializers.ValidationError("Invalid OTP provided. Please try again.")
         return value
+
+
+class EmployeeProfileSerializer(TaggitSerializer, serializers.ModelSerializer):
+    skills = TagListSerializerField()
+    
+    class Meta:
+        model = EmployeeProfile
+        fields = ('username', 'skills')
+        
+    def create(self, validated_data):
+        user = self.context['request'].user
+        skills = validated_data.pop('skills', None)
+        
+        employee_profile = EmployeeProfile(
+            user=user,
+            **validated_data
+        )
+        
+        try:
+            employee_profile.full_clean()
+            employee_profile.save()
+            employee_profile.skills.set(skills)
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
+        
+        return employee_profile
+ 
+ 
+class EmployeeSocialLinkSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='employee_profile.username', read_only=True)
+    class Meta:
+        model = SocialLink
+        fields = ('link', 'social_media_type', 'username')
+        
+    def create(self, validated_data):
+        user = self.context['request'].user
+        employee_profile = get_object_or_404(EmployeeProfile, user=user)
+        
+        social_link = SocialLink(
+            employee_profile=employee_profile,
+            **validated_data
+        )
+        
+        try:
+            social_link.full_clean()
+            social_link.save()
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
+        
+        return social_link
