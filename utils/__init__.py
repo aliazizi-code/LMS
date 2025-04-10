@@ -11,5 +11,5 @@ from .get_upload_to_for_image import *
 
 from .get_discounted_price import *
 
-from custom_fields.phone_number_field import *
-from custom_fields.slug_field import *
+from .custom_fields.phone_number_field import *
+from .custom_fields.slug_field import *

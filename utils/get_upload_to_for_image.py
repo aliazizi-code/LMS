@@ -1,4 +1,4 @@
-from utils.slug_field import slugify
+from utils.custom_fields.slug_field import slugify
 
 def get_upload_to(instance, filename, prefix):
         slugged_filename = slugify(filename)
