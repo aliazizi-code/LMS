@@ -1,14 +1,20 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, Group
 from django.utils.translation.trans_null import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 from mptt.models import MPTTModel, TreeForeignKey
 from taggit.managers import TaggableManager
 
 from .managers import UserManager
-from utils import validate_image_size, get_upload_to, PhoneNumberField
+from utils import (
+    validate_image_size,
+    get_upload_to,
+    PhoneNumberField,
+    validate_persian,
+)
 
 
 def avatar_get_upload_to(instance, filename):
@@ -33,13 +39,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=255,
         blank=True,
         null=True,
-        verbose_name=_('نام')
+        verbose_name=_('نام'),
+        validators=[validate_persian]
     )
     last_name = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        verbose_name=_('نام خانوادگی')
+        verbose_name=_('نام خانوادگی'),
+        validators=[validate_persian]
     )
     is_active = models.BooleanField(
         default=True,
@@ -76,7 +84,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def full_name(self):
         if self.first_name and self.last_name:
             return f"{self.first_name.capitalize()} {self.last_name.capitalize()}"
-        return ""
+        return "ناشناس"
 
     def __str__(self):
         full_name = self.full_name()
@@ -155,7 +163,6 @@ class UserProfile(models.Model):
     )
     avatar_thumbnail = ImageSpecField(
         source='avatar',
-        processors=[ResizeToFill(120, 120)],
         format='JPEG',
         options={'quality': 80}
     )
@@ -182,6 +189,56 @@ class UserProfile(models.Model):
         return str(self.user)
 
 
+class EmployeeProfile(models.Model):
+    user_profile = models.OneToOneField(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name='employee_profile',
+        verbose_name=_('پروفایل عمومی کاربر')
+    )
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        verbose_name=_('نام کاربری'),
+        validators=[
+            RegexValidator(
+                regex=r'^[a-z0-9]{3,150}$',
+                message=_('نام کاربری باید فقط شامل حروف کوچک انگلیسی و اعداد باشد و نباید فاصله یا علامت خاصی داشته باشد.')
+            )
+        ],
+    )
+    position = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        verbose_name=_("نقش کارمند")
+    )
+    skills = TaggableManager(
+        blank=True,
+        verbose_name=_('مهارت ها'),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ثبت نام')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
+    
+    def __str__(self):
+        return str(self.user_profile.user)
+
+    class Meta:
+        verbose_name = _('پروفایل کارمند')
+        verbose_name_plural = _('پروفایل کارمندان')
+        permissions = (
+            ("can_teacher", "Can teacher"),
+            ("can_employee", "Can employee"),
+            # ("can_author", "Can author"),
+        )
+
+
 class SocialLink(models.Model):
     class SocialMediaType(models.TextChoices):
         telegram = 'telegram', _('تلگرام')
@@ -199,12 +256,12 @@ class SocialLink(models.Model):
         choices=SocialMediaType.choices,
         verbose_name=_('نوع شبکه اجتماعی'),
     )
-    url = models.URLField(
+    link = models.URLField(
         unique=True,
         verbose_name=_('آدرس'),
     )
     employee_profile = models.ForeignKey(
-        UserProfile,
+        EmployeeProfile,
         on_delete=models.CASCADE,
         related_name='social_links',
         verbose_name=_('پروفایل کارمند'),
@@ -219,12 +276,32 @@ class SocialLink(models.Model):
     )
     
     def __str__(self):
-        return self.title
+        return f"{self.employee_profile.username} - {self.social_media_type}"
     
     def clean(self):
-        pass
+        count = SocialLink.objects.filter(employee_profile=self.employee_profile).count()
+        if count >= 5:
+            raise ValidationError(_('هر کاربر نمی‌تواند بیش از ۵ لینک اجتماعی ایجاد کند.'))
         
+        patterns = {
+            self.SocialMediaType.telegram: "https://t.me/",
+            self.SocialMediaType.instagram: "https://www.instagram.com/",
+            self.SocialMediaType.linkedin: "https://www.linkedin.com/",
+            self.SocialMediaType.x: "https://x.com/",
+            self.SocialMediaType.threads: "https://www.threads.net/",
+            self.SocialMediaType.facebook: "https://www.facebook.com/",
+            self.SocialMediaType.youtube: "https://www.youtube.com/",
+            self.SocialMediaType.github: "https://github.com/",
+            self.SocialMediaType.gitlab: "https://gitlab.com/",
+        }
+
+        if self.social_media_type in patterns and not self.link.startswith(patterns[self.social_media_type]):
+            raise ValidationError(_(f'لینک {self.SocialMediaType(self.social_media_type).label} باید با "{patterns[self.social_media_type]}" شروع شود.'))
     
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+        
     class Meta:
         verbose_name = _('لینک اجتماعی')
         verbose_name_plural = _('لینک های اجتماعی')
@@ -236,39 +313,15 @@ class SocialLink(models.Model):
         )
 
 
-class EmployeeProfile(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='employee_profile',
-        verbose_name=_('کاربر')
-    )
-    username = models.CharField(
-        max_length=150,
-        unique=True,
-        verbose_name=_('نام کاربری'),
-    )
-    skills = TaggableManager(
-        blank=True,
-        verbose_name=_('مهارت ها'),
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_('تاریخ ثبت نام')
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        verbose_name=_('تاریخ ویرایش')
-    )
+class CustomGroup(models.Model):
+    group = models.OneToOneField(Group, on_delete=models.CASCADE, verbose_name=_("گروه"), related_name='custom_groups')
+    description = models.TextField(null=True, blank=True, verbose_name=_("توضیحات"))
+    is_display = models.BooleanField(default=False, verbose_name=_("وضعیت نمایش"))
     
     def __str__(self):
-        return str(self.user)
-
+        return str(self.group)
+    
     class Meta:
-        verbose_name = _('پروفایل کارمند')
-        verbose_name_plural = _('پروفایل کارمندان')
-        permissions = (
-            ("can_teacher", "Can teacher"),
-            ("can_employee", "Can employee"),
-            # ("can_author", "Can author"),
-        )
+        verbose_name = _('گروه سفارشی')
+        verbose_name_plural = _('گروه های سفارشی')
+        ordering = ['group']
