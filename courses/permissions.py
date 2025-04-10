@@ -1,15 +1,12 @@
-from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import PermissionDenied
 
-class IsTeacher(BasePermission):
+from accounts.permissions import IsEmployee
+
+class IsTeacher(IsEmployee):
     def has_permission(self, request, view):
-        if not request.user.is_authenticated:
-            return False
-
-        if not request.user.is_active:
-            raise PermissionDenied('کاربر فعال نیست.')
-
-        if not (request.user.has_perm('courses.can_teacher') and request.user.has_perm('accounts.can_employee')):
+        super().has_permission(request, view)
+        
+        if not request.user.has_perm('courses.can_teacher'):
             raise PermissionDenied('کاربر مجوزهای لازم را ندارد.')
 
         return True
