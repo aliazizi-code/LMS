@@ -84,9 +84,14 @@ class UserProfileAdmin(admin.ModelAdmin):
     thumbnail.short_description = "Thumbnail"
 
 
+class CustomGroupAdmin(admin.ModelAdmin):
+    list_display = ("group", "is_display")
+
+
 admin.site.register(models.User, UserAdmin)
 admin.site.register(models.JobCategory, JobCategoryAdmin)
 admin.site.register(models.Job, JobAdmin)
 admin.site.register(models.UserProfile, UserProfileAdmin)
 admin.site.register(models.EmployeeProfile)
 admin.site.register(models.SocialLink)
+admin.site.register(models.CustomGroup, CustomGroupAdmin)
