@@ -11,14 +11,9 @@ class CategoryListView(generics.ListAPIView):
 
 
 class PublicArticleViewSet(ReadOnlyModelViewSet):
-    queryset = Article.objects.all()
+    queryset = Article.objects.all(status='published')
     serializer_class = ArticleSerializer
-    permission_classes = [IsAuthenticated]
+    lookup_field = 'slug'
 
-    def perform_create(self, serializer):
-        if self.request.user.is_staff:
-            serializer.save(author=self.request.user, status='published')
-        else:
-            serializer.save(author=self.request.user)
-
+ 
 
