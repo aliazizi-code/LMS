@@ -24,6 +24,14 @@ class AuthorArticleViewset(ModelViewSet):
     def get_queryset(self):
         return self.request.user.articles.all()
     
+    def perform_create(self, serializer):
+        if self.request.user.is_staff:
+            serializer.save(author=self.request.user, status='published')
+        else:
+            serializer.save(author=self.request.user)
+
+
+    
 
 
 
