@@ -15,8 +15,11 @@ class ArticleViewSet(ModelViewSet):
     serializer_class = ArticleSerializer
     permission_classes = [IsAuthenticated]
 
-    
-
+    def perform_create(self, serializer):
+        if self.request.user.is_staff:
+            serializer.save(author=self.request.user, status='published')
+        else:
+            serializer.save(author=self.request.user)
 
 
 
