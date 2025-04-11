@@ -16,4 +16,14 @@ class PublicArticleViewSet(ReadOnlyModelViewSet):
     lookup_field = 'slug'
 
 
+class AuthorArticleViewset(ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ArticleSerializer
+    lookup_field = 'slug'
+
+    def get_queryset(self):
+        return self.request.user.articles.all()
+    
+
+
 
