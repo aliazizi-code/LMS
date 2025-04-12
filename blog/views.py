@@ -11,7 +11,7 @@ class CategoryListView(generics.ListAPIView):
 
 
 class PublicArticleViewSet(ReadOnlyModelViewSet):
-    queryset = Article.objects.filter(status='PUBLISHED')
+    queryset = Article.objects.filter(status=Article.STATUS.PUBLISHED)
     serializer_class = ArticleSerializer
     lookup_field = 'slug'
 
