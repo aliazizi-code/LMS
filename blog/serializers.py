@@ -19,6 +19,7 @@ class ArticleCategorySerializer(serializers.ModelSerializer):
     
 
 class ArticleSerializer(TaggitSerializer, serializers.ModelSerializer):
+    image_thumbnail = serializers.ImageField(read_only=True)
     tags = TagListSerializerField()
     category = serializers.SlugRelatedField(
         many=True,
