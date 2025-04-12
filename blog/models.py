@@ -54,7 +54,7 @@ class Article(models.Model):
     image_thumbnail = ImageSpecField(
         source='image',
         processors=[ResizeToFill(120, 120)],
-        format='jpg',
+        format='JPEG',
         options={'quality': 80}
     ) 
     category = models.ManyToManyField(ArticleCategory, related_name="articles", db_table='article_category_link')
