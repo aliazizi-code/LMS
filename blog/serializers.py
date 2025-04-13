@@ -45,3 +45,12 @@ class ArticleSerializer(TaggitSerializer, serializers.ModelSerializer):
             'category', 'content', 'short_description', 'tags',
             'status', 'created_at', 'updated_at', 'published_at',
         )
+        extra_kwargs = {
+            'created_at': {'read_only': True},
+            'updated_at': {'read_only': True},
+            'published_at': {'read_only': True},
+            'author': {'read_only': True},
+            'image_thumbnail': {'read_only': True},
+            'short_description': {'read_only': True},
+            'status': {'read_only': True},
+        }
