@@ -62,17 +62,22 @@ class EmployeeProfileSerializer(TaggitSerializer, serializers.ModelSerializer):
         
     def create(self, validated_data):
         user = self.context['request'].user
-        skills = validated_data.pop('skills', None)
+        skills = validated_data.pop('skills', [])
+        
+        user_profile, _ = UserProfile.objects.get_or_create(user=user)
         
         employee_profile = EmployeeProfile(
-            user=user,
+            user_profile=user_profile,
             **validated_data
         )
         
         try:
             employee_profile.full_clean()
             employee_profile.save()
-            employee_profile.skills.set(skills)
+            
+            if skills:
+                employee_profile.skills.set(skills)
+            
         except ValidationError as e:
             raise serializers.ValidationError(e.message_dict)
         except Exception as e:
