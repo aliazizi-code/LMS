@@ -5,7 +5,7 @@ from accounts.models import User
 
 
 class AuthorSerializer(serializers.ModelSerializer):
-    avatar_thumbnail = serializers.ImageField(source='profile.avatar_thumbnail', read_only=True)
+    avatar_thumbnail = serializers.ImageField(source='user_profile.avatar_thumbnail', read_only=True)
     
     class Meta:
         model = User
