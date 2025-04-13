@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.models import Group
 from .forms import UserCreationForm, UserChangeForm
 from . import models
 
@@ -84,14 +86,37 @@ class UserProfileAdmin(admin.ModelAdmin):
     thumbnail.short_description = "Thumbnail"
 
 
-class CustomGroupAdmin(admin.ModelAdmin):
-    list_display = ("group", "is_display")
+class GroupCustomInline(admin.StackedInline):
+    model = models.CustomGroup
+    can_delete = False
+
+
+class GroupAdmin(admin.ModelAdmin):
+    inlines = (GroupCustomInline,)
+    list_display = ('name',)
+    search_fields = ('name',)
+    filter_horizontal = ('permissions',)
+
+
+class PositionInline(admin.StackedInline):
+    model = models.Position
+    can_delete = False
+
+
+class EmployeeProfileAdmin(admin.ModelAdmin):
+    inlines = (PositionInline,)
+    list_display = ('username',)
+    search_fields = ('username',)
 
 
 admin.site.register(models.User, UserAdmin)
 admin.site.register(models.JobCategory, JobCategoryAdmin)
 admin.site.register(models.Job, JobAdmin)
 admin.site.register(models.UserProfile, UserProfileAdmin)
-admin.site.register(models.EmployeeProfile)
+admin.site.register(models.EmployeeProfile, EmployeeProfileAdmin)
+
 admin.site.register(models.SocialLink)
-admin.site.register(models.CustomGroup, CustomGroupAdmin)
+
+admin.site.unregister(Group)
+admin.site.register(Group, GroupAdmin)
+
