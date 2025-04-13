@@ -49,7 +49,7 @@ urlpatterns = [
     path('employee/<str:username>/', views.EmployeeDetailView.as_view(), name='employee-detail'),
     path('user/employee/social-links/', views.EmployeeSocialLinkViewSet.as_view({'get': 'list'}), name='employee-social-links-list'),
     path('user/phone/change/verify/', views.ChangePhoneVerifyView.as_view(), name='change-phone-verify'),
-    path('groups/', views.GroupListView.as_view(), name='group-list'),
+    path('team/', views.TeamListView.as_view(), name='group-list'),
 
     # Password management
     path('password/reset/', views.ForgotPasswordView.as_view(), name='forgot-password-request'),
