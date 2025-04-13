@@ -1,5 +1,6 @@
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404, get_list_or_404
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
@@ -45,7 +46,7 @@ class CategoryHierarchyListView(generics.ListAPIView):
 
 class TeacherCoursesListListView(generics.ListAPIView):
     serializer_class = TeacherCoursesSerializer
-    permission_classes = [IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacher]
     pagination_class = CourseListPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = CourseFilter
@@ -60,7 +61,7 @@ class TeacherCoursesListListView(generics.ListAPIView):
 class TeacherCourseDetailManagementViewSet(viewsets.ViewSet):
     serializer_class = TeacherCourseDetailManagementSerializer
     pagination_class = CourseListPagination
-    permission_classes = [IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacher]
     
     def create(self, request):
         serializer = self.serializer_class(data=request.data)
@@ -93,7 +94,7 @@ class TeacherCourseDetailManagementViewSet(viewsets.ViewSet):
 
 class TeacherSeasonManagementViewSet(viewsets.ViewSet):
     serializer_class = TeacherSeasonManagementSerializer
-    permission_classes = [IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacher]
     
     def list(self, request):
         course_slug = request.query_params.get('course_slug')
@@ -142,7 +143,7 @@ class TeacherSeasonManagementViewSet(viewsets.ViewSet):
 
 class TeacherLessonManagementViewSet(viewsets.ViewSet):
     serializer_class = TeacherLessonManagementSerializer
-    permission_classes = [IsTeacher]
+    permission_classes = [IsAuthenticated, IsTeacher]
     
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
