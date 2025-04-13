@@ -7,6 +7,7 @@ from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 from django.conf import settings
 from utils import get_upload_to, validate_image_size, AutoSlugField
+from django.utils import timezone
 
 
 def get_upload_image(instance, filename):
@@ -69,6 +70,15 @@ class Article(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.status == self.STATUS.PUBLISHED and self.pk:
+            original = Article.objects.get(pk=self.pk)
+            if original.status != self.STATUS.PUBLISHED:
+                self.published_at = timezone.now()
+        elif self.status == self.STATUS.PUBLISHED and not self.pk:
+            self.published_at = timezone.now()
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = _('Article')
