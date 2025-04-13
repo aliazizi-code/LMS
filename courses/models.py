@@ -1,17 +1,16 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, MaxLengthValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFill
 from taggit.managers import TaggableManager
-from django.contrib.postgres.search import SearchVectorField, SearchVector
+from django.contrib.postgres.search import SearchVectorField
 from django.contrib.postgres.indexes import GinIndex
 from mptt.models import MPTTModel, TreeForeignKey
 
-from utils import get_upload_to, validate_image_size, get_discounted_price, AutoSlugField
+from utils import get_upload_to, validate_image_size, AutoSlugField
 
 
 def get_upload_path(instance, filename):
@@ -114,6 +113,11 @@ class Course(models.Model):
         IN_PROGRESS = 'IN_PROGRESS', _('در حال برگذاری')
         UPCOMING = 'UPCOMING', _('به زودی')
         CANCELLED = 'CANCELLED', _('کنسل شده')
+    
+    class LANGUAGE(models.TextChoices):
+        FA = 'fa', _('فارسی')
+        EN = 'en', _('انگلیسی')
+        AZ = 'az', _('ترکی آذربایجانی')
 
     title = models.CharField(max_length=200, verbose_name=_('عنوان دوره'))
     slug = AutoSlugField(source_field='title',verbose_name=_('آدرس دوره'))
@@ -126,6 +130,16 @@ class Course(models.Model):
     )
     tags = TaggableManager(verbose_name=_('برچسب ها'))
     # comments = models.ManyToManyField('Comment', blank=True)
+    language = models.CharField(
+        max_length=50,
+        choices=LANGUAGE.choices,
+        verbose_name=_("زبان دوره")
+    )
+    prerequisites = models.CharField(
+        max_length=100,
+        blank=True, null=True,
+        verbose_name=_('پیش نیاز')
+    )
     learning_path = models.ForeignKey(
         LearningPath, related_name='courses',
         on_delete=models.CASCADE,
@@ -171,7 +185,7 @@ class Course(models.Model):
     has_seasons = models.BooleanField(default=False, verbose_name=_('فصل بندی شده/نشده'))
     is_deleted = models.BooleanField(default=False, verbose_name=_('وضعیت حذف'))
     start_date = models.DateTimeField(blank=True, null=True, verbose_name=_('تاریخ شروع دوره'))
-    end_date = models.DateTimeField(blank=True, null=True, verbose_name=_('تاریخ پایان دوره'))
+    last_lesson_update = models.DateTimeField(null=True, blank=True, verbose_name=_('تاریخ آخرین بروزرسانی جلسات'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
 
@@ -186,10 +200,6 @@ class Course(models.Model):
 
         if errors:
             raise ValidationError(errors)
-
-    def toggle_seasoning(self):
-        self.has_seasons = not self.has_seasons
-        self.save()
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -208,10 +218,26 @@ class Course(models.Model):
         ]
 
 
+class Feature(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name=_('دوره'))
+    title = models.CharField(max_length=100, verbose_name=_('عنوان'))
+    description = models.TextField(validators=[MaxLengthValidator(300)], verbose_name=_('توضیحات'))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
+    
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = _('ویژگی')
+        verbose_name_plural = _('ویژگی ها')
+        
+    def __str__(self):
+        return f"{self.title} - {self.course.title}"
+
+
 class Price(models.Model):
     course = models.OneToOneField(
         Course,
-        related_name='prices',
+        related_name='price',
         on_delete=models.CASCADE,
         verbose_name=_('دوره')
     )
@@ -221,16 +247,25 @@ class Price(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         verbose_name=_('درصد تخفیف')
     )
-    final_price = models.PositiveIntegerField(verbose_name=_('قیمت نهایی'))
+    final_price = models.PositiveIntegerField(editable=False, verbose_name=_('قیمت نهایی'))
     discount_expires_at = models.DateTimeField(blank=True, null=True,verbose_name=_('تاریخ انقضای تخفیف'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
+    
+    def save(self, *args, **kwargs):
+        self.final_price = self.main_price * (100 - self.discount_percentage) // 100
+
+        if self.discount_expires_at and self.discount_expires_at < timezone.now():
+            self.discount_percentage = 0
+            self.final_price = self.main_price
+            
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'price {self.course.title}: {self.main_price}'
+        return f'{self.course.title} - {self.final_price} تومان'
 
     class Meta:
         verbose_name = _('قیمت')
         verbose_name_plural = _('قیمت ها')
-        unique_together = (('course', 'main_price'),)
 
 
 class Season(models.Model):
@@ -254,13 +289,6 @@ class Season(models.Model):
 
     def __str__(self):
         return self.title
-    
-    # def clean(self):
-    #     active_lessons = self.course.lessons.filter(is_deleted=False)
-
-    #     if active_lessons.exists():
-    #         if any(lesson.season is None for lesson in active_lessons):
-    #             raise ValidationError("تمام درس‌ها باید در فصل‌ها قرار داشته باشند.")
             
     def save(self, *args, **kwargs):
         self.clean()
@@ -297,14 +325,6 @@ class Lesson(models.Model):
 
     def __str__(self):
         return self.title
-    
-    # def clean(self):
-    #     if self.course.has_seasons:
-    #         if self.season is None:
-    #             raise ValidationError("درس باید در یک فصل قرار داشته باشد.")
-    #     else:
-    #         if self.season is not None:
-    #             raise ValidationError("اگر دوره فصل بندی نشده است، درس باید بدون فصل باشد.")
 
     def save(self, *args, **kwargs):
         self.clean()
