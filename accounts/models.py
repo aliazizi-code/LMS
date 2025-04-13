@@ -1,10 +1,10 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, Group
 from django.utils.translation.trans_null import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFill
 from mptt.models import MPTTModel, TreeForeignKey
 from taggit.managers import TaggableManager
 
@@ -138,7 +138,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
-        related_name='profiles',
+        related_name='user_profile',
         verbose_name=_('کاربر')
     )
     bio = models.TextField(
@@ -149,7 +149,7 @@ class UserProfile(models.Model):
     job = models.ForeignKey(
         Job,
         on_delete=models.CASCADE,
-        related_name='profiles',
+        related_name='user_profile',
         blank=True,
         null=True,
         verbose_name=_('شغل')
@@ -184,9 +184,40 @@ class UserProfile(models.Model):
         verbose_name_plural = _('پروفایل کاربران')
         ordering = ['-id']
         db_table = 'user_profile'
+        indexes = [
+            models.Index(fields=['age', 'gender', 'job']),
+            models.Index(fields=['bio'], condition=Q(bio__isnull=False) & ~Q(bio=''), name='non_empty_bio_idx'),
+        ]
 
     def __str__(self):
         return str(self.user)
+
+
+class EmployeeProfileManager(models.Manager):
+    def filter_completed_profiles(self):
+        return self.get_queryset().select_related(
+            'user_profile',
+            'user_profile__user',
+            'user_profile__job'
+        ).filter(
+            username__isnull=False,
+            user_profile__user__first_name__isnull=False,
+            user_profile__user__last_name__isnull=False,
+            user_profile__age__isnull=False,
+            user_profile__gender__isnull=False,
+            user_profile__job__isnull=False,
+            user_profile__bio__isnull=False,
+        ).exclude(
+            user_profile__bio=''
+        ).only(
+            'id', 'username', 'created_at',
+            'user_profile__age',
+            'user_profile__gender',
+            'user_profile__bio',
+            'user_profile__user__first_name',
+            'user_profile__user__last_name',
+            'user_profile__job__title'
+        )
 
 
 class EmployeeProfile(models.Model):
@@ -207,12 +238,6 @@ class EmployeeProfile(models.Model):
             )
         ],
     )
-    position = models.CharField(
-        max_length=150,
-        blank=True,
-        null=True,
-        verbose_name=_("نقش کارمند")
-    )
     skills = TaggableManager(
         blank=True,
         verbose_name=_('مهارت ها'),
@@ -226,6 +251,8 @@ class EmployeeProfile(models.Model):
         verbose_name=_('تاریخ ویرایش')
     )
     
+    objects = EmployeeProfileManager()
+    
     def __str__(self):
         return str(self.user_profile.user)
 
@@ -237,6 +264,24 @@ class EmployeeProfile(models.Model):
             ("can_employee", "Can employee"),
             # ("can_author", "Can author"),
         )
+
+
+class Position(models.Model):
+    employee_profile = models.OneToOneField(
+        EmployeeProfile,
+        on_delete=models.CASCADE,
+        verbose_name=_('پروفایل کارمند'),
+        related_name='position'
+    )
+    roles = TaggableManager(
+        blank=True,
+        verbose_name=_("نقش های کارمند")
+    )
+    
+    class Meta:
+        verbose_name = _('موقعیت شغلی')
+        verbose_name_plural = _('موقعیت‌های شغلی')
+        
 
 
 class SocialLink(models.Model):
@@ -279,6 +324,7 @@ class SocialLink(models.Model):
         return f"{self.employee_profile.username} - {self.social_media_type}"
     
     def clean(self):
+        super().clean()
         count = SocialLink.objects.filter(employee_profile=self.employee_profile).count()
         if count >= 5:
             raise ValidationError(_('هر کاربر نمی‌تواند بیش از ۵ لینک اجتماعی ایجاد کند.'))
@@ -314,7 +360,7 @@ class SocialLink(models.Model):
 
 
 class CustomGroup(models.Model):
-    group = models.OneToOneField(Group, on_delete=models.CASCADE, verbose_name=_("گروه"), related_name='custom_groups')
+    group = models.OneToOneField(Group, on_delete=models.CASCADE, verbose_name=_("گروه"), related_name='custom_group')
     description = models.TextField(null=True, blank=True, verbose_name=_("توضیحات"))
     is_display = models.BooleanField(default=False, verbose_name=_("وضعیت نمایش"))
     
