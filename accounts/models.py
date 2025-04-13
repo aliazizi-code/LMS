@@ -129,7 +129,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
-        related_name='profile'
+        related_name='user_profile'
     )
     bio = models.TextField(
         blank=True,
@@ -149,7 +149,7 @@ class UserProfile(models.Model):
     avatar_thumbnail = ImageSpecField(
         source='avatar',
         processors=[ResizeToFill(120, 120)],
-        format='JPEG',
+        format='',
         options={'quality': 80}
     )
     age = models.PositiveSmallIntegerField(
