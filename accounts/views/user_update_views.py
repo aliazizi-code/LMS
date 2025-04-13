@@ -7,7 +7,7 @@ from accounts.models import UserProfile, EmployeeProfile, SocialLink
 from utils import generate_otp_change_phone
 from accounts.docs.schema import *
 from accounts.tasks import send_otp_to_phone_tasks
-from accounts.permissions import IsEmployee
+from accounts.permissions import IsEmployeeForProfile
 from accounts.serializers import (
     UserProfileSerializer,
     ChangePhoneRequestSerializer,
@@ -76,7 +76,7 @@ class ChangePhoneVerifyView(APIView):
 
 class EmployeeProfileViewSet(viewsets.ViewSet):
     serializer_class = EmployeeProfileSerializer
-    permission_classes = [IsEmployee] 
+    permission_classes = [IsEmployeeForProfile] 
 
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
@@ -86,7 +86,7 @@ class EmployeeProfileViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
     def partial_update(self, request):
-        queryset = get_object_or_404(EmployeeProfile, user=request.user)
+        queryset = get_object_or_404(EmployeeProfile, user_profile__user=request.user)
         serializer = self.serializer_class(queryset, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -94,14 +94,14 @@ class EmployeeProfileViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def retrieve(self, request):
-        queryset = get_object_or_404(EmployeeProfile, user=request.user)
+        queryset = get_object_or_404(EmployeeProfile, user_profile__user=request.user)
         serializer = self.serializer_class(queryset)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class EmployeeSocialLinkViewSet(viewsets.ViewSet):
     serializer_class = EmployeeSocialLinkSerializer
-    permission_classes = [IsEmployee]
+    permission_classes = [IsEmployeeForProfile]
     
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
