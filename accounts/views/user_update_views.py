@@ -76,7 +76,7 @@ class ChangePhoneVerifyView(APIView):
 
 class EmployeeProfileViewSet(viewsets.ViewSet):
     serializer_class = EmployeeProfileSerializer
-    permission_classes = [IsEmployeeForProfile] 
+    permission_classes = [IsAuthenticated, IsEmployeeForProfile] 
 
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
@@ -101,7 +101,7 @@ class EmployeeProfileViewSet(viewsets.ViewSet):
 
 class EmployeeSocialLinkViewSet(viewsets.ViewSet):
     serializer_class = EmployeeSocialLinkSerializer
-    permission_classes = [IsEmployeeForProfile]
+    permission_classes = [IsAuthenticated, IsEmployeeForProfile]
     
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
