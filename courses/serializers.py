@@ -10,15 +10,14 @@ from accounts.models import User
 # region Base
 class BaseCourseSerializer(serializers.ModelSerializer):
     banner_thumbnail = serializers.ImageField(read_only=True)
-    main_price = serializers.IntegerField(source='prices.main_price', read_only=True)
-    final_price = serializers.IntegerField(source='prices.final_price', read_only=True)
+    main_price = serializers.IntegerField(source='price.main_price', read_only=True)
+    final_price = serializers.IntegerField(source='price.final_price', read_only=True)
 
     class Meta:
         model = Course
         fields = (
             'title', 'slug', 'main_price', 'final_price', 'course_duration',
-            'short_description', 'banner_thumbnail', 'start_date',
-            'status', 'count_lessons',
+            'short_description', 'banner_thumbnail',
         )
        
      
@@ -152,7 +151,7 @@ class TeacherCoursesSerializer(BaseCourseSerializer):
     """
 
     class Meta(BaseCourseSerializer.Meta):
-        fields = BaseCourseSerializer.Meta.fields
+        fields = BaseCourseSerializer.Meta.fields + ('count_lessons',)
  
 
 class TeacherLessonDisplaySerializer(BaseLessonDisplaySerializer):
@@ -173,8 +172,8 @@ class TeacherCourseDetailManagementSerializer(TaggitSerializer, serializers.Mode
         queryset=CourseCategory.objects.filter(is_active=True)
     )
     learning_path = serializers.SerializerMethodField(read_only=True)
-    main_price = serializers.IntegerField(source='prices.main_price', read_only=True)
-    final_price = serializers.IntegerField(source='prices.final_price', read_only=True)
+    main_price = serializers.IntegerField(source='price.main_price', read_only=True)
+    final_price = serializers.IntegerField(source='price.final_price', read_only=True)
     seasons = TeacherSeasonDisplaySerializer(many=True, read_only=True)
     lessons_no_season = serializers.SerializerMethodField(read_only=True)
 
@@ -185,11 +184,11 @@ class TeacherCourseDetailManagementSerializer(TaggitSerializer, serializers.Mode
         model = Course
         fields = (
             'title', 'slug', 'description', 'short_description', 'categories',
-            'tags', 'start_level', 'end_level', 'banner', 'status',
-            'is_published', 'learning_path', 'start_date', 'end_date',
-            'course_duration', 'created_at', 'updated_at', 'main_price',
-            'final_price', 'count_lessons', 'count_students', 'has_seasons',
-            'seasons', 'lessons_no_season',
+            'tags', 'start_level', 'end_level', 'banner', 'status', 'language',
+            'is_published', 'learning_path', 'start_date', 'end_date', 'url_video',
+            'course_duration', 'created_at', 'updated_at', 'last_lesson_update',
+            'main_price', 'final_price', 'count_lessons', 'count_students',
+            'has_seasons', 'seasons', 'lessons_no_season', 'prerequisites',
         )
         extra_kwargs = {
             # write_only
@@ -262,12 +261,13 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     """
     
     avatar_thumbnail = serializers.ImageField(source='profiles.avatar_thumbnail', read_only=True)
+    username = serializers.CharField(source='user_profile.employee_profile.username')
     class Meta:
         model = User
         fields = (
             'full_name',
             'avatar_thumbnail',
-            # 'username',
+            'username',
         )
 
 # endregion
@@ -288,29 +288,32 @@ class UsersCourseListSerializer(BaseCourseSerializer):
     It includes information about each course and the related teacher's details.
     """
     teacher = TeacherProfileSerializer(read_only=True)
-    learning_path = serializers.CharField(source='learning_path.title', read_only=True)
 
     class Meta(BaseCourseSerializer.Meta):
-        fields = BaseCourseSerializer.Meta.fields + ('learning_path', 'teacher')
+        fields = BaseCourseSerializer.Meta.fields + ('teacher',)
 
 
 class UserCourseDetailSerializer(TaggitSerializer, serializers.ModelSerializer):
     tags = TagListSerializerField()
     teacher = TeacherProfileSerializer(read_only=True)
-    main_price = serializers.IntegerField(source='prices.main_price', read_only=True)
-    final_price = serializers.IntegerField(source='prices.final_price', read_only=True)
+    main_price = serializers.IntegerField(source='price.main_price', read_only=True)
+    final_price = serializers.IntegerField(source='price.final_price', read_only=True)
     learning_path = serializers.CharField(source='learning_path.title', read_only=True)
     seasons = UserSeasonDisplaySerializer(many=True, read_only=True)
     lessons = serializers.SerializerMethodField(read_only=True)
+    status = serializers.CharField(source='get_status_display')
+    language = serializers.CharField(source='get_language_display')
     
     class Meta:
         model = Course
         fields = (
             'title', 'slug', 'main_price', 'final_price',
             'learning_path', 'description', 'status',
-            'count_students', 'count_lessons','teacher',
-            'banner', 'start_date', 'end_date', 'tags',
-            'course_duration', 'has_seasons', 'seasons', 'lessons'
+            'count_lessons','teacher', 'banner',
+            'start_date', 'end_date', 'tags',
+            'course_duration', 'has_seasons', 'seasons',
+            'lessons', 'language', 'prerequisites', 
+            'last_lesson_update'
         )
     
     def get_lessons(self, obj):
