@@ -1,6 +1,15 @@
 from rest_framework import serializers
 from .models import *
 from taggit.serializers import TagListSerializerField, TaggitSerializer
+from accounts.models import User
+
+
+class AuthorSerializer(serializers.ModelSerializer):
+    avatar_thumbnail = serializers.ImageField(source='profile.avatar_thumbnail', read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ['slug', 'first_name', 'last_name', 'avatar_thumbnail']
 
 
 class ArticleCategorySerializer(serializers.ModelSerializer):
@@ -19,6 +28,7 @@ class ArticleCategorySerializer(serializers.ModelSerializer):
     
 
 class ArticleSerializer(TaggitSerializer, serializers.ModelSerializer):
+    author = AuthorSerializer(read_only=True)
     image_thumbnail = serializers.ImageField(read_only=True)
     tags = TagListSerializerField()
     category = serializers.SlugRelatedField(
