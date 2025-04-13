@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.models import Group
 from .forms import UserCreationForm, UserChangeForm
 from . import models
 
@@ -15,7 +17,7 @@ class UserAdmin(BaseUserAdmin):
 
     fieldsets = (
         ('Main', {'fields': ('email', 'phone', 'first_name', 'last_name', 'password')}),
-        ('Permissions', {'fields': ('is_active', 'is_admin', 'is_superuser', 'last_login', 'groups', 'user_permissions')}),
+        ('Permissions', {'fields': ('is_active', 'is_admin', 'is_staff', 'is_superuser', 'last_login', 'groups', 'user_permissions')}),
     )
 
     add_fieldsets = (
@@ -84,9 +86,37 @@ class UserProfileAdmin(admin.ModelAdmin):
     thumbnail.short_description = "Thumbnail"
 
 
+class GroupCustomInline(admin.StackedInline):
+    model = models.CustomGroup
+    can_delete = False
+
+
+class GroupAdmin(admin.ModelAdmin):
+    inlines = (GroupCustomInline,)
+    list_display = ('name',)
+    search_fields = ('name',)
+    filter_horizontal = ('permissions',)
+
+
+class PositionInline(admin.StackedInline):
+    model = models.Position
+    can_delete = False
+
+
+class EmployeeProfileAdmin(admin.ModelAdmin):
+    inlines = (PositionInline,)
+    list_display = ('username',)
+    search_fields = ('username',)
+
+
 admin.site.register(models.User, UserAdmin)
 admin.site.register(models.JobCategory, JobCategoryAdmin)
 admin.site.register(models.Job, JobAdmin)
 admin.site.register(models.UserProfile, UserProfileAdmin)
-admin.site.register(models.EmployeeProfile)
+admin.site.register(models.EmployeeProfile, EmployeeProfileAdmin)
+
 admin.site.register(models.SocialLink)
+
+admin.site.unregister(Group)
+admin.site.register(Group, GroupAdmin)
+

@@ -110,9 +110,9 @@ class CourseCategory(MPTTModel):
 
 class Course(models.Model):
     class STATUS(models.TextChoices):
-        COMPLETED = 'COMPLETED', _('اتمام یافته')
-        IN_PROGRESS = 'IN_PROGRESS', _('در حال تکمیل')
-        UPCOMING = 'UPCOMING', _('در حال انتظار')
+        COMPLETED = 'COMPLETED', _('تکمیل شده')
+        IN_PROGRESS = 'IN_PROGRESS', _('در حال برگذاری')
+        UPCOMING = 'UPCOMING', _('به زودی')
         CANCELLED = 'CANCELLED', _('کنسل شده')
 
     title = models.CharField(max_length=200, verbose_name=_('عنوان دوره'))
@@ -138,7 +138,6 @@ class Course(models.Model):
     )
     banner_thumbnail = ImageSpecField(
         source='banner',
-        processors=[ResizeToFill(120, 120)],
         format='JPEG',
         options={'quality': 80},
     )
