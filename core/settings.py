@@ -60,7 +60,6 @@ INSTALLED_APPS = [
     'accounts.apps.AccountsConfig',
     'blog.apps.BlogConfig',
     'courses.apps.CoursesConfig',
-    'blog.apps.BlogConfig',
 ]
 
 MIDDLEWARE = [
