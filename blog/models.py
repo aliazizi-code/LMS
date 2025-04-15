@@ -89,3 +89,9 @@ class Article(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Section(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='sections')
+    title = models.CharField(max_length=250)
+    content = models.TextField()
