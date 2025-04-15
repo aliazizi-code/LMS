@@ -103,3 +103,5 @@ class Section(models.Model):
         ordering = ['order']
         db_table = 'section'
 
+    def __str__(self):
+        return self.title
