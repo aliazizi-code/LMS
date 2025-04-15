@@ -31,3 +31,11 @@ class IsEmployeeForProfile(BasePermission):
             raise PermissionDenied(_('کاربر مجوزهای لازم را ندارد.'))
         
         return True
+
+
+# TODO : Bro 00
+class IsAnonymousUser(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        super().has_permission(request, view)
+        # ...
+        return True
