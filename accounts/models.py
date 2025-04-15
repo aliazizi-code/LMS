@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Q
+from django.db.models import Prefetch
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, Group
 from django.utils.translation.trans_null import gettext_lazy as _
 from django.core.exceptions import ValidationError
@@ -80,15 +80,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = _('کاربران')
         ordering = ['created_at']
         db_table = 'custom_user'
+        indexes = [
+            models.Index(fields=['phone']),
+            models.Index(fields=['email_verify_token']),
+        ]
 
     def full_name(self):
         if self.first_name and self.last_name:
             return f"{self.first_name.capitalize()} {self.last_name.capitalize()}"
-        return "ناشناس"
+        return None
 
     def __str__(self):
         full_name = self.full_name()
-        return f"{full_name.strip()} ({self.phone or self.email})".strip()
+        return f"{full_name} ({self.phone})"
 
 
 class JobCategory(MPTTModel):
@@ -141,11 +145,6 @@ class UserProfile(models.Model):
         related_name='user_profile',
         verbose_name=_('کاربر')
     )
-    bio = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name=_('بیوگرافی')
-    )
     job = models.ForeignKey(
         Job,
         on_delete=models.CASCADE,
@@ -166,6 +165,10 @@ class UserProfile(models.Model):
         format='JPEG',
         options={'quality': 80}
     )
+    skills = TaggableManager(
+        blank=True,
+        verbose_name=_('مهارت ها'),
+    )
     age = models.PositiveSmallIntegerField(
         blank=True,
         null=True,
@@ -184,39 +187,22 @@ class UserProfile(models.Model):
         verbose_name_plural = _('پروفایل کاربران')
         ordering = ['-id']
         db_table = 'user_profile'
-        indexes = [
-            models.Index(fields=['age', 'gender', 'job']),
-            models.Index(fields=['bio'], condition=Q(bio__isnull=False) & ~Q(bio=''), name='non_empty_bio_idx'),
-        ]
-
     def __str__(self):
         return str(self.user)
 
 
 class EmployeeProfileManager(models.Manager):
     def filter_completed_profiles(self):
-        return self.get_queryset().select_related(
-            'user_profile',
-            'user_profile__user',
-            'user_profile__job'
-        ).filter(
+        return self.get_queryset().filter(
             username__isnull=False,
             user_profile__user__first_name__isnull=False,
             user_profile__user__last_name__isnull=False,
             user_profile__age__isnull=False,
             user_profile__gender__isnull=False,
             user_profile__job__isnull=False,
-            user_profile__bio__isnull=False,
+            bio__isnull=False,
         ).exclude(
-            user_profile__bio=''
-        ).only(
-            'id', 'username', 'created_at',
-            'user_profile__age',
-            'user_profile__gender',
-            'user_profile__bio',
-            'user_profile__user__first_name',
-            'user_profile__user__last_name',
-            'user_profile__job__title'
+            bio=''
         )
 
 
@@ -233,14 +219,17 @@ class EmployeeProfile(models.Model):
         verbose_name=_('نام کاربری'),
         validators=[
             RegexValidator(
-                regex=r'^[a-z0-9]{3,150}$',
+                regex=r'^[a-z0-9\-_]{3,150}$',
                 message=_('نام کاربری باید فقط شامل حروف کوچک انگلیسی و اعداد باشد و نباید فاصله یا علامت خاصی داشته باشد.')
             )
         ],
     )
-    skills = TaggableManager(
+    bio = models.TextField(
+        verbose_name=_('بیوگرافی')
+    )
+    roles = TaggableManager(
         blank=True,
-        verbose_name=_('مهارت ها'),
+        verbose_name=_("نقش های کارمند")
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -264,24 +253,10 @@ class EmployeeProfile(models.Model):
             ("can_employee", "Can employee"),
             # ("can_author", "Can author"),
         )
-
-
-class Position(models.Model):
-    employee_profile = models.OneToOneField(
-        EmployeeProfile,
-        on_delete=models.CASCADE,
-        verbose_name=_('پروفایل کارمند'),
-        related_name='position'
-    )
-    roles = TaggableManager(
-        blank=True,
-        verbose_name=_("نقش های کارمند")
-    )
-    
-    class Meta:
-        verbose_name = _('موقعیت شغلی')
-        verbose_name_plural = _('موقعیت‌های شغلی')
-        
+        indexes = [
+            models.Index(fields=['username']),
+            
+        ]
 
 
 class SocialLink(models.Model):
@@ -340,6 +315,14 @@ class SocialLink(models.Model):
             self.SocialMediaType.github: "https://github.com/",
             self.SocialMediaType.gitlab: "https://gitlab.com/",
         }
+        
+        if SocialLink.objects.filter(
+            employee_profile=self.employee_profile,
+            social_media_type=self.social_media_type
+        ).exclude(pk=self.pk if self.pk else None).exists():
+            raise ValidationError(
+                f'رکوردی با نوع {self.SocialMediaType(self.social_media_type).label} از قبل وجود دارد.'
+            )
 
         if self.social_media_type in patterns and not self.link.startswith(patterns[self.social_media_type]):
             raise ValidationError(_(f'لینک {self.SocialMediaType(self.social_media_type).label} باید با "{patterns[self.social_media_type]}" شروع شود.'))
