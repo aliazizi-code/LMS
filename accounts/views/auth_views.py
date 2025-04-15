@@ -2,7 +2,6 @@ from django.conf import settings
 from django.middleware.csrf import rotate_token
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django_ratelimit.decorators import ratelimit
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -14,6 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, Token
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from accounts.docs.schema import *
+from accounts.decorators import debug_sensitive_ratelimit
 from accounts.jwt import set_token_cookies, delete_token_cookies
 from accounts.models import User
 from accounts.serializers import (
@@ -52,9 +52,12 @@ class BaseLoginView(APIView):
 
 
 @method_decorator(
-    ratelimit(key='ip', rate=f'1/{OTP_TIMEOUT}s', method='POST', block=True), name='dispatch')
+    debug_sensitive_ratelimit(
+        key='ip', rate=f'1/{OTP_TIMEOUT}s', method='POST', block=True), name='dispatch'
+    )
 class RequestOTPView(APIView):
     serializer_class = RequestOTPSerializer
+    # permission_classes = [IsAnonymousUser]
 
     @request_otp_docs
     def post(self, request):
@@ -63,12 +66,18 @@ class RequestOTPView(APIView):
         if serializer.is_valid():
             data = serializer.validated_data
             phone = data['phone']
+            created = User.objects.filter(phone=phone).exists()
 
             otp = generate_otp_auth_num(phone)
             send_otp_to_phone_tasks.delay(otp)
+            
+            data = {'created': not created,}
+            
+            if settings.DEBUG:
+                data['otp'] = otp
 
             return Response(
-                data={'message': 'OTP sent successfully'},
+                data=data,
                 status=status.HTTP_200_OK
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -122,10 +131,7 @@ class PhoneLoginView(BaseLoginView):
     def _generate_response(self, user, request):
         response = self._handle_login(user, request)
 
-        response.data = {
-            'message': 'Login successful',
-            'phone': str(user.phone),
-        }
+        response.data = {'phone': str(user.phone),}
 
         return response
 
