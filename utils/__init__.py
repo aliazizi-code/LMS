@@ -13,3 +13,5 @@ from .get_discounted_price import *
 
 from .custom_fields.phone_number_field import *
 from .custom_fields.slug_field import *
+
+from .update_descendants_active_status import *
