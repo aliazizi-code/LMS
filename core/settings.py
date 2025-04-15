@@ -11,10 +11,13 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 from datetime import timedelta
+
+TESTING = 'test' in sys.argv
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -183,7 +186,7 @@ SIMPLE_JWT = {
     "AUTH_COOKIE_HTTP_ONLY": True,
     "AUTH_COOKIE_SAMESITE": "Lax",
     # The flag restricting cookie leaks on cross-site requests. 'Lax', 'Strict' or None to disable the flag.
-    "AUTH_COOKIE_REFRESH_PATH": "/accounts/auth/",
+    "AUTH_COOKIE_REFRESH_PATH": "/accounts/",
 }
 
 # IMAGES
@@ -217,3 +220,22 @@ OTP = {
     # VALID_WINDOW defines how many time steps are valid for OTP
     # verification Each step is 30 seconds, and values from 0 to 5 are allowed.
 }
+
+
+# Internal IPs
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
+# Debug toolbar
+
+if not TESTING:
+    INSTALLED_APPS = [
+        *INSTALLED_APPS,
+        "debug_toolbar",
+    ]
+    MIDDLEWARE = [
+        "debug_toolbar.middleware.DebugToolbarMiddleware",
+        *MIDDLEWARE,
+    ]
+ 
