@@ -61,6 +61,7 @@ class Article(models.Model):
     category = models.ManyToManyField(ArticleCategory, related_name="articles", db_table='article_category_link')
     content = models.TextField()
     short_description = models.TextField()
+    has_sections = models.BooleanField(default=False)
     tags = TaggableManager()
     status = models.CharField(
         max_length=30,
