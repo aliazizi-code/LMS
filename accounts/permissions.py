@@ -31,4 +31,3 @@ class IsEmployeeForProfile(BasePermission):
             raise PermissionDenied(_('کاربر مجوزهای لازم را ندارد.'))
         
         return True
-    
