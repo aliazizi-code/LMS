@@ -96,3 +96,10 @@ class Section(models.Model):
     title = models.CharField(max_length=250)
     content = models.TextField()
     order = models.PositiveIntegerField()
+
+    class Meta:
+        verbose_name = _('Section')
+        verbose_name_plural = _('Sections')
+        ordering = ['order']
+        db_table = 'section'
+
