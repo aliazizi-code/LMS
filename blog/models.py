@@ -95,3 +95,4 @@ class Section(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='sections')
     title = models.CharField(max_length=250)
     content = models.TextField()
+    order = models.PositiveIntegerField()
