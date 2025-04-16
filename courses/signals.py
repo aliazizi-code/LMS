@@ -83,14 +83,20 @@ def decrease_count_lesson(sender, instance, **kwargs):
 
 @receiver(pre_save, sender=Course)
 def set_published_at(sender, instance, **kwargs):
-    if instance.pk:
-        try:
-            previous = Course.objects.get(pk=instance.pk)
-        except Course.DoesNotExist:
-            return
-
-        if not previous.is_published and instance.is_published and instance.published_at is None:
-            instance.published_at = timezone.now()
+    if not instance.pk:
+        return
+    
+    old = Course.objects.filter(pk=instance.pk).only(
+        'is_published', 'published_at'
+    ).first()
+    
+    if (
+        old
+        and not old.is_published
+        and instance.is_published
+        and not  old.published_at
+    ):
+        instance.published_at = timezone.now()
 
 
             
