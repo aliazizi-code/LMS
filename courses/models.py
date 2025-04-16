@@ -105,6 +105,9 @@ class CourseCategory(MPTTModel):
         verbose_name_plural = _('دسته بندی های دوره')
         ordering = ['title']
         unique_together = (('title', 'slug'),)
+        indexes = [
+            models.Index(fields=['slug'])
+        ]
 
 
 class Course(models.Model):
@@ -129,7 +132,6 @@ class Course(models.Model):
         verbose_name=_('دسته بندی دوره')
     )
     tags = TaggableManager(verbose_name=_('برچسب ها'))
-    # comments = models.ManyToManyField('Comment', blank=True)
     language = models.CharField(
         max_length=50,
         choices=LANGUAGE.choices,
@@ -176,8 +178,9 @@ class Course(models.Model):
     )
     count_students = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد دانشجویان'))
     count_lessons = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد درس ها'))
-    course_duration = models.DurationField(
+    duration = models.DurationField(
         default=timezone.timedelta(0),
+        editable=False,
         verbose_name=_('مدت زمان دوره')
     )
     count_comments = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد نظرات'))
@@ -185,9 +188,14 @@ class Course(models.Model):
     has_seasons = models.BooleanField(default=False, verbose_name=_('فصل بندی شده/نشده'))
     is_deleted = models.BooleanField(default=False, verbose_name=_('وضعیت حذف'))
     start_date = models.DateTimeField(blank=True, null=True, verbose_name=_('تاریخ شروع دوره'))
-    last_lesson_update = models.DateTimeField(null=True, blank=True, verbose_name=_('تاریخ آخرین بروزرسانی جلسات'))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
+    last_lesson_update = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_('تاریخ آخرین بروزرسانی جلسات'))
+    created_at = models.DateTimeField(auto_now_add=True, editable=False, verbose_name=_('تاریخ ایجاد'))
+    updated_at = models.DateTimeField(auto_now=True, editable=False, verbose_name=_('تاریخ بروزرسانی'))
+    published_at = models.DateTimeField(blank=True, null=True, editable=False, verbose_name=_('تاریخ انتشار'))
+    
+    def update_lesson_date(self):
+        self.last_lesson_update = timezone.now()
+        self.save(update_fields=['last_lesson_update'])
 
     def clean(self):
         errors = {}
@@ -197,6 +205,14 @@ class Course(models.Model):
 
         if self.status != self.STATUS.UPCOMING and self.start_date:
             errors['start_date'] = "تاریخ شروع باید خالی باشد اگر وضعیت 'UPCOMING' نیست."
+        
+        if self.is_published:
+            if self.pk:
+                old_instance = Course.objects.get(pk=self.pk)
+                if old_instance.is_deleted == False and self.is_deleted == True:
+                    raise ValidationError(
+                        "امکان حذف دوره‌های منتشر شده وجود ندارد."
+                    )
 
         if errors:
             raise ValidationError(errors)
@@ -215,23 +231,43 @@ class Course(models.Model):
         unique_together = (('title', 'slug'),)
         indexes = [
             GinIndex(fields=['sv']),
+            models.Index(fields=['slug']),
+            models.Index(fields=['is_deleted', 'is_published']),
         ]
 
 
 class Feature(models.Model):
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name=_('دوره'))
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='features', verbose_name=_('دوره'))
     title = models.CharField(max_length=100, verbose_name=_('عنوان'))
     description = models.TextField(validators=[MaxLengthValidator(300)], verbose_name=_('توضیحات'))
+    order = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name=_('ترتیب دوره'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
     
     class Meta:
-        ordering = ['created_at', 'id']
+        ordering = ['order', 'created_at', 'id']
         verbose_name = _('ویژگی')
         verbose_name_plural = _('ویژگی ها')
         
     def __str__(self):
         return f"{self.title} - {self.course.title}"
+
+
+class FAQ(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='faqs', verbose_name=_('دوره'))
+    question = models.CharField(max_length=255, verbose_name=_('سوال'))
+    answer = models.TextField(verbose_name=_('پاسخ'))
+    order = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name=_('ترتیب دوره'))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
+    
+    class Meta:
+        ordering = ['order', 'created_at', 'id']
+        verbose_name = _('سوال متداول')
+        verbose_name_plural = _('سوالات متداول')
+        
+    def __str__(self):
+        return f"{self.question[:30]}... - {self.course.title}"
 
 
 class Price(models.Model):
@@ -272,8 +308,9 @@ class Season(models.Model):
     title = models.CharField(max_length=100, verbose_name=_('عنوان فصل'))
     description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
     is_published = models.BooleanField(default=False, verbose_name=_('وضعیت انتشار'))
+    order = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name=_('ترتیب دوره'))
     is_deleted = models.BooleanField(default=False, verbose_name=_('وضعیت حذف'))
-    season_duration = models.DurationField(
+    duration = models.DurationField(
         default=timezone.timedelta(0),
         verbose_name=_('مدت زمان فصل')
     )
@@ -285,7 +322,21 @@ class Season(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
-    
+
+    def clean(self):
+        super().clean()
+        
+        if self.course.is_published:
+            if self.pk:
+                old_instance = Season.objects.get(pk=self.pk)
+                if old_instance.is_deleted == False and self.is_deleted == True:
+                    raise ValidationError(
+                        "امکان حذف فصل برای دوره‌های منتشر شده وجود ندارد."
+                    )
+                if old_instance.is_published == True and self.is_published == False:
+                    raise ValidationError(
+                        "امکان تغییر وضعیت از انتشار به عدم انتشار فصل برای دوره‌های منتشر شده وجود ندارد."
+                    )
 
     def __str__(self):
         return self.title
@@ -295,7 +346,7 @@ class Season(models.Model):
         super().save(*args, **kwargs)
 
     class Meta:
-        ordering = ['created_at', 'id']
+        ordering = ['order', 'created_at', 'id']
         verbose_name = _('فصل')
         verbose_name_plural = _('فصل ها')
 
@@ -304,6 +355,7 @@ class Lesson(models.Model):
     title = models.CharField(max_length=100, verbose_name=_('عنوان درس'))
     description = models.TextField(blank=True, null=True, verbose_name=_('توضیحات'))
     url_video = models.URLField(verbose_name=_('آدرس ویدیو'), unique=True)
+    order = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name=_('ترتیب دوره'))
     url_files = models.URLField(blank=True, null=True, unique=True, verbose_name=_('آدرس فایل ها'))
     is_published = models.BooleanField(default=False, verbose_name=_('وضعیت انتشار'))
     is_deleted = models.BooleanField(default=False, verbose_name=_('وضعیت حذف'))
@@ -320,17 +372,37 @@ class Lesson(models.Model):
         on_delete=models.CASCADE,
         verbose_name=_('دوره')
     )
+    duration = models.DurationField(
+        default=timezone.timedelta(0),
+        verbose_name=_('مدت زمان فصل')
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاریخ ایجاد'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('تاریخ بروزرسانی'))
+    
+    def clean(self):
+        super().clean()
+        
+        if self.course.is_published:
+            if self.pk:
+                old_instance = Lesson.objects.get(pk=self.pk)
+                if old_instance.is_deleted == False and self.is_deleted == True:
+                    raise ValidationError(
+                        "امکان حذف جلسه برای دوره‌های منتشر شده وجود ندارد."
+                    )
+                if old_instance.is_published == True and self.is_published == False:
+                    raise ValidationError(
+                        "امکان تغییر وضعیت از انتشار به عدم انتشار جلسه برای دوره‌های منتشر شده وجود ندارد."
+                    )
 
     def __str__(self):
         return self.title
 
     def save(self, *args, **kwargs):
         self.clean()
+        self.course.update_lesson_date()
         super().save(*args, **kwargs)
     
     class Meta:
-        ordering = ['created_at', 'id']
+        ordering = ['order', 'created_at', 'id']
         verbose_name = _('درس')
         verbose_name_plural = _('درس ها')
