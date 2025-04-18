@@ -24,7 +24,7 @@ def update_search_vector(sender, instance, **kwargs):
     Course.objects.filter(
         id=instance.id
     ).update(
-        sv=SearchVector('title', 'short_description')
+        sv=SearchVector('title')
     )
 
 
