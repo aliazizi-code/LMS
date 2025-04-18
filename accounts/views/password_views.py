@@ -24,6 +24,13 @@ class SetPasswordView(APIView):
             user.save()
             return Response({"detail": "Password set successfully."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request):
+        user = request.user
+        has_password = is_password_usable(user.password)
+        return Response({
+            'has_password': has_password
+        })
 
 
 class ChangePasswordView(APIView):
