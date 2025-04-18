@@ -19,13 +19,6 @@ class SetPasswordView(APIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             user = request.user
-            
-            if is_password_usable(user.password):
-                return Response(
-                    {"detail": "کاربر از قبل رمز عبور دارد. لطفاً از گزینه «تغییر رمز عبور» استفاده کنید."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
             password = serializer.validated_data['password']
             user.set_password(password)
             user.save()
