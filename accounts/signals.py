@@ -5,12 +5,12 @@ from django.dispatch import receiver
 from accounts.models import JobCategory, EmployeeProfile, CustomGroup
 from courses.models import Course
 # from blog.models import Article # (uncomment if needed)
+from utils import update_descendants_active_status
 
 
 @receiver(post_save, sender=JobCategory)
-def update_active_status_of_descendants(sender, instance, **kwargs):
-    descendants = instance.get_descendants(include_self=True)
-    descendants.update(is_active=instance.is_active)
+def update_job_category_status(sender, instance, **kwargs):
+    update_descendants_active_status(instance)
 
 
 @receiver(post_migrate)

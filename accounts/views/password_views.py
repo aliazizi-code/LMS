@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.contrib.auth.hashers import is_password_usable
 
 from accounts.serializers.password_serializers import (
     BasePasswordSerializer,
@@ -18,6 +19,13 @@ class SetPasswordView(APIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             user = request.user
+            
+            if is_password_usable(user.password):
+                return Response(
+                    {"detail": "کاربر از قبل رمز عبور دارد. لطفاً از گزینه «تغییر رمز عبور» استفاده کنید."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             password = serializer.validated_data['password']
             user.set_password(password)
             user.save()
@@ -30,31 +38,32 @@ class ChangePasswordView(APIView):
     serializer_class = ChangePasswordSerializer
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data, context={'request': request})
         user = request.user
 
         if serializer.is_valid():
             data = serializer.validated_data
-            old_password = data['old_password']
             new_password = data['password']
+            
+            user.set_password(new_password)
+            user.save()
 
-            if user.check_password(old_password):
-                user.set_password(new_password)
-                user.save()
-
-                return Response({"detail": "Password changed successfully."}, status=status.HTTP_200_OK)
-
-            return Response({"detail": "Invalid password."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ForgotPasswordView(APIView):
     serializer_class = ForgotPasswordSerializer
+    # permission_classes = [IsAnonymousUser]
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
-            return Response(data={'phone': data['phone']}, status=status.HTTP_200_OK)
+            return Response(
+                data={'phone': data['phone'],
+                      'has_user': True},
+                status=status.HTTP_200_OK
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

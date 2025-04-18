@@ -1,16 +1,19 @@
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 
 from accounts.models import EmployeeProfile
 from accounts.serializers import (
-    TeamSerializer,
+    EmployeeListSerializer,
     EmployeeDetailSerializer,
 )
 
 
-class TeamListView(APIView):
-    serializer_class = TeamSerializer
+@method_decorator(cache_page(60 * 60), name='dispatch')
+class EmployeeListView(APIView):
+    serializer_class = EmployeeListSerializer
 
     def get(self, request):
         queryset = EmployeeProfile.objects.filter_completed_profiles()
@@ -18,6 +21,7 @@ class TeamListView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@method_decorator(cache_page(60 * 60), name='dispatch')
 class EmployeeDetailView(APIView):
     serializer_class = EmployeeDetailSerializer
 

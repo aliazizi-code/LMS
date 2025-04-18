@@ -2,7 +2,7 @@ from rest_framework import serializers
 from accounts.models import EmployeeProfile
 
 
-class TeamSerializer(serializers.ModelSerializer):
+class EmployeeListSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     avatar_thumbnail = serializers.SerializerMethodField()
 
@@ -21,10 +21,9 @@ class TeamSerializer(serializers.ModelSerializer):
 
 class EmployeeDetailSerializer(serializers.ModelSerializer):
     skills = serializers.SerializerMethodField()
-    position = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     full_name = serializers.CharField(source='user_profile.user.full_name')
-    bio = serializers.CharField(source='user_profile.bio')
     social_links = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
     
@@ -33,16 +32,16 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
         model = EmployeeProfile
         fields = (
             'full_name', 'bio', 'avatar', 'groups',
-            'skills', 'position', 'social_links'
+            'skills', 'roles', 'social_links'
         )
         
     def get_skills(self, obj):
-        skills = obj.skills.names()
+        skills = obj.user_profile.skills.names()
         return list(skills)
         
-    def get_position(self, obj):
-        position = obj.position.roles.names()
-        return list(position)
+    def get_roles(self, obj):
+        roles = obj.roles.names()
+        return list(roles)
         
     def get_groups(self, obj):
         group_names = obj.user_profile.user.groups.filter(

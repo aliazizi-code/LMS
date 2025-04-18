@@ -6,12 +6,12 @@ from django.db.models import Q
 class CourseFilter(filters.FilterSet):
     order_by = filters.OrderingFilter(
         fields=(
-            ('prices__final_price', 'price'),
+            ('price__final_price', 'price'),
             ('created_at', 'created'),
         )
     )
     is_free = filters.BooleanFilter(method='filter_by_is_free')
-    price = filters.RangeFilter(field_name='prices__final_price')
+    price = filters.RangeFilter(field_name='price__final_price')
     is_discount = filters.BooleanFilter(method='filter_by_discount')
     level = filters.CharFilter(method='filter_by_learning_path')
     status = filters.ChoiceFilter(field_name='status', choices=Course.STATUS.choices)
@@ -20,13 +20,13 @@ class CourseFilter(filters.FilterSet):
 
     def filter_by_is_free(self, queryset, name, value):
         if value:
-            return queryset.filter(Q(prices__final_price=0) | Q(prices__isnull=True))
-        return queryset.exclude(Q(prices__final_price=0) | Q(prices__isnull=True))
+            return queryset.filter(Q(price__final_price=0) | Q(price__isnull=True))
+        return queryset.exclude(Q(price__final_price=0) | Q(price__isnull=True))
 
     def filter_by_discount(self, queryset, name, value):
         if value:
-            return queryset.filter(prices__discount_percentage__gt=0)
-        return queryset.exclude(prices__discount_percentage__gt=0)
+            return queryset.filter(price__discount_percentage__gt=0)
+        return queryset.exclude(price__discount_percentage__gt=0)
 
     def filter_by_learning_path(self, queryset, name, value):
         """

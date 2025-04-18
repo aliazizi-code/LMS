@@ -67,10 +67,10 @@ class UserProfileAdmin(admin.ModelAdmin):
 
     fieldsets = (
     ('اطلاعات کاربر', {
-        'fields': ('user', 'bio')
+        'fields': ('user',)
     }),
     ('اطلاعات شغلی', {
-        'fields': ('job', 'age', 'gender')
+        'fields': ('job', 'age', 'gender', 'skills')
     }),
     ('عکس پروفایل', {
         'fields': ('avatar', 'thumbnail')
@@ -98,13 +98,7 @@ class GroupAdmin(admin.ModelAdmin):
     filter_horizontal = ('permissions',)
 
 
-class PositionInline(admin.StackedInline):
-    model = models.Position
-    can_delete = False
-
-
 class EmployeeProfileAdmin(admin.ModelAdmin):
-    inlines = (PositionInline,)
     list_display = ('username',)
     search_fields = ('username',)
 

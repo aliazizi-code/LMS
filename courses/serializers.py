@@ -3,22 +3,29 @@ from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from taggit.serializers import TagListSerializerField, TaggitSerializer
 
-from courses.models import Course, Lesson, Season, LearningPath, CourseCategory
 from accounts.models import User
+from courses.models import (
+    Course,
+    Lesson,
+    Season,
+    LearningPath,
+    CourseCategory,
+    Feature,
+    FAQ,
+)
 
 
 # region Base
 class BaseCourseSerializer(serializers.ModelSerializer):
     banner_thumbnail = serializers.ImageField(read_only=True)
-    main_price = serializers.IntegerField(source='prices.main_price', read_only=True)
-    final_price = serializers.IntegerField(source='prices.final_price', read_only=True)
+    main_price = serializers.IntegerField(source='price.main_price', read_only=True)
+    final_price = serializers.IntegerField(source='price.final_price', read_only=True)
 
     class Meta:
         model = Course
         fields = (
-            'title', 'slug', 'main_price', 'final_price', 'course_duration',
-            'short_description', 'banner_thumbnail', 'start_date',
-            'status', 'count_lessons',
+            'title', 'slug', 'main_price', 'final_price', 'duration',
+            'short_description', 'banner_thumbnail',
         )
        
      
@@ -27,7 +34,7 @@ class BaseLessonDisplaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ('title', 'course', 'description', 'url_video', 'url_files')
+        fields = ('title', 'course', 'description', 'url_video', 'url_files', 'duration')
 
 
 class BaseSeasonDisplaySerializer(serializers.ModelSerializer):
@@ -36,7 +43,7 @@ class BaseSeasonDisplaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Season
-        fields = ('title', 'description', 'lessons', 'season_duration', 'course')
+        fields = ('title', 'description','duration', 'course', 'lessons')
     
     def get_lessons(self, obj):
         lessons = Lesson.objects.filter(season=obj, is_deleted=False)
@@ -56,7 +63,7 @@ class TeacherSeasonManagementSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Season
-        fields = ('id', 'title', 'description', 'course_slug', 'is_published')
+        fields = ('id', 'title', 'description', 'course_slug', 'is_published', 'order')
         read_only_fields = ('id',)
     
     def create(self, validated_data):
@@ -64,7 +71,12 @@ class TeacherSeasonManagementSerializer(serializers.ModelSerializer):
         course_slug = validated_data.pop('course_slug')
         teacher = self.context['request'].user
         
-        course = get_object_or_404(Course, slug=course_slug, teacher=teacher, is_deleted=False)
+        course = get_object_or_404(
+            Course,
+            slug=course_slug,
+            teacher=teacher,
+            is_deleted=False
+        )
         season = Season(**validated_data, course=course)
         
         try:
@@ -152,7 +164,7 @@ class TeacherCoursesSerializer(BaseCourseSerializer):
     """
 
     class Meta(BaseCourseSerializer.Meta):
-        fields = BaseCourseSerializer.Meta.fields
+        fields = BaseCourseSerializer.Meta.fields + ('count_lessons',)
  
 
 class TeacherLessonDisplaySerializer(BaseLessonDisplaySerializer):
@@ -173,8 +185,8 @@ class TeacherCourseDetailManagementSerializer(TaggitSerializer, serializers.Mode
         queryset=CourseCategory.objects.filter(is_active=True)
     )
     learning_path = serializers.SerializerMethodField(read_only=True)
-    main_price = serializers.IntegerField(source='prices.main_price', read_only=True)
-    final_price = serializers.IntegerField(source='prices.final_price', read_only=True)
+    main_price = serializers.IntegerField(source='price.main_price', read_only=True)
+    final_price = serializers.IntegerField(source='price.final_price', read_only=True)
     seasons = TeacherSeasonDisplaySerializer(many=True, read_only=True)
     lessons_no_season = serializers.SerializerMethodField(read_only=True)
 
@@ -185,11 +197,11 @@ class TeacherCourseDetailManagementSerializer(TaggitSerializer, serializers.Mode
         model = Course
         fields = (
             'title', 'slug', 'description', 'short_description', 'categories',
-            'tags', 'start_level', 'end_level', 'banner', 'status',
-            'is_published', 'learning_path', 'start_date', 'end_date',
-            'course_duration', 'created_at', 'updated_at', 'main_price',
-            'final_price', 'count_lessons', 'count_students', 'has_seasons',
-            'seasons', 'lessons_no_season',
+            'tags', 'start_level', 'end_level', 'banner', 'status', 'language',
+            'is_published', 'learning_path', 'start_date', 'url_video',
+            'duration', 'created_at', 'updated_at', 'last_lesson_update',
+            'main_price', 'final_price', 'count_lessons', 'count_students',
+            'has_seasons', 'seasons', 'lessons_no_season', 'prerequisites',
         )
         extra_kwargs = {
             # write_only
@@ -197,7 +209,7 @@ class TeacherCourseDetailManagementSerializer(TaggitSerializer, serializers.Mode
             'end_level': {'write_only': True},
             
             # read only
-            'course_duration': {'read_only': True},
+            'duration': {'read_only': True},
             'created_at': {'read_only': True},
             'updated_at': {'read_only': True},
             'count_lessons': {'read_only': True},
@@ -243,6 +255,14 @@ class TeacherCourseDetailManagementSerializer(TaggitSerializer, serializers.Mode
     def get_lessons_no_season(self, obj):
         lessons = Lesson.objects.filter(course=obj, season=None, is_deleted=False)
         return TeacherLessonDisplaySerializer(lessons, many=True).data
+    
+    def validate_is_published(self, value):
+        if value is False:
+            if self.instance and self.instance.is_published:
+                raise serializers.ValidationError(
+                    "امکان تغییر وضعیت از انتشار به عدم انتشار وجود ندارد. "
+                )
+        return value
 
 
 class TeacherCoursesSerializer(BaseCourseSerializer):
@@ -262,13 +282,63 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     """
     
     avatar_thumbnail = serializers.ImageField(source='profiles.avatar_thumbnail', read_only=True)
+    username = serializers.CharField(source='user_profile.employee_profile.username')
     class Meta:
         model = User
         fields = (
             'full_name',
             'avatar_thumbnail',
-            # 'username',
+            'username',
         )
+
+
+class TeacherFeatureSerializer(serializers.ModelSerializer):
+    course_slug = serializers.CharField(required=True, write_only=True)
+    class Meta:
+        model = Feature
+        fields = ('id', 'title', 'description', 'course_slug', 'order')
+        
+    def create(self, validated_data):
+        teacher = self.context['request'].user
+        course_slug = validated_data.pop('course_slug')
+        
+        course = get_object_or_404(Course, slug=course_slug, teacher=teacher)
+        
+        feature = Feature(**validated_data, course=course)
+        
+        try:
+            feature.full_clean()
+            feature.save()
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
+        
+        return feature
+
+class TeacherFAQSerializer(serializers.ModelSerializer):
+    course_slug = serializers.CharField(required=True, write_only=True)
+    class Meta:
+        model = FAQ
+        fields = ('id', 'question', 'answer', 'course_slug', 'order')
+        
+    def create(self, validated_data):
+        teacher = self.context['request'].user
+        course_slug = validated_data.pop('course_slug')
+        
+        course = get_object_or_404(Course, slug=course_slug, teacher=teacher)
+        
+        faq = FAQ(**validated_data, course=course)
+        
+        try:
+            faq.full_clean()
+            faq.save()
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
+        
+        return faq
 
 # endregion
 
@@ -287,35 +357,78 @@ class UsersCourseListSerializer(BaseCourseSerializer):
     This serializer is used to display an overview of all courses for users.
     It includes information about each course and the related teacher's details.
     """
-    teacher = TeacherProfileSerializer(read_only=True)
-    learning_path = serializers.CharField(source='learning_path.title', read_only=True)
+    teacher = serializers.SerializerMethodField()
 
     class Meta(BaseCourseSerializer.Meta):
-        fields = BaseCourseSerializer.Meta.fields + ('learning_path', 'teacher')
+        fields = BaseCourseSerializer.Meta.fields + ('teacher',)
+        
+    def get_teacher(self, obj):
+        return {
+            "full_name": f"{obj.teacher_first_name.strip()} {obj.teacher_last_name.strip()}",
+            "username": obj.teacher_username,
+        }
+
+
+class UserFeatureListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feature
+        fields = ('title', 'description')
+
+
+class UserFAQListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQ
+        fields = ('question', 'answer')
 
 
 class UserCourseDetailSerializer(TaggitSerializer, serializers.ModelSerializer):
     tags = TagListSerializerField()
-    teacher = TeacherProfileSerializer(read_only=True)
-    main_price = serializers.IntegerField(source='prices.main_price', read_only=True)
-    final_price = serializers.IntegerField(source='prices.final_price', read_only=True)
+    # teacher = TeacherProfileSerializer(read_only=True)
+    teacher = serializers.SerializerMethodField(read_only=True)
+    main_price = serializers.IntegerField(source='price.main_price', read_only=True)
+    final_price = serializers.IntegerField(source='price.final_price', read_only=True)
     learning_path = serializers.CharField(source='learning_path.title', read_only=True)
-    seasons = UserSeasonDisplaySerializer(many=True, read_only=True)
+    seasons = serializers.SerializerMethodField(read_only=True)
     lessons = serializers.SerializerMethodField(read_only=True)
+    status = serializers.CharField(source='get_status_display')
+    language = serializers.CharField(source='get_language_display')
+    feature = serializers.SerializerMethodField(read_only=True)
+    faq = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = Course
         fields = (
             'title', 'slug', 'main_price', 'final_price',
-            'learning_path', 'description', 'status',
-            'count_students', 'count_lessons','teacher',
-            'banner', 'start_date', 'end_date', 'tags',
-            'course_duration', 'has_seasons', 'seasons', 'lessons'
+            'learning_path', 'short_description', 'description',
+            'status', 'count_lessons','teacher', 'banner',
+            'start_date', 'tags', 'feature',
+            'duration', 'has_seasons', 'seasons',
+            'lessons', 'language', 'prerequisites', 'faq',
+            'last_lesson_update'
         )
     
     def get_lessons(self, obj):
-        lessons = Lesson.objects.filter(course=obj, is_deleted=False, is_published=True)
+        if obj.has_seasons:
+            return None
+
+        lessons = getattr(obj, 'prefetched_lessons', [])
         return UserLessonDisplaySerializer(lessons, many=True).data
+
+    def get_seasons(self, obj):
+        if not obj.has_seasons:
+            return None
+
+        seasons = getattr(obj, 'prefetched_seasons', [])
+        return UserSeasonDisplaySerializer(seasons, many=True).data
+    
+    def get_faq(self, obj):
+        faqs = getattr(obj, 'prefetched_faqs', [])
+        return UserFAQListSerializer(faqs, many=True).data
+    
+    def get_feature(self, obj):
+        features = getattr(obj, 'prefetched_features', [])
+        return UserFeatureListSerializer(features, many=True).data
+
     
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -326,6 +439,12 @@ class UserCourseDetailSerializer(TaggitSerializer, serializers.ModelSerializer):
             representation.pop('lessons', None)
 
         return representation
+    
+    def get_teacher(self, obj):
+        return {
+            "full_name": f"{obj.teacher_first_name.strip()} {obj.teacher_last_name.strip()}",
+            "username": obj.teacher_username,
+        }
 
 
 class CategoryHierarchySerializer(serializers.ModelSerializer):

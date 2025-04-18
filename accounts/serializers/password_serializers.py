@@ -24,6 +24,18 @@ class BasePasswordSerializer(serializers.Serializer):
 
 class ChangePasswordSerializer(BasePasswordSerializer):
     old_password = serializers.CharField(write_only=True)
+    
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        
+        if not user.check_password(value):
+            raise serializers.ValidationError('رمز عبور فعلی اشتباه است.')
+        return value
+    
+    def validate(self, attrs):
+        if attrs['old_password'] == attrs['password']:
+            raise serializers.ValidationError({'password': 'رمز عبور جدید نباید مشابه رمز عبور فعلی باشد.'})
+        return attrs
 
 
 class ForgotPasswordSerializer(serializers.Serializer):

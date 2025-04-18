@@ -57,7 +57,7 @@ class UserLoginForm(forms.Form):
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
-        fields = ('bio', 'job', 'avatar', 'age', 'gender')
+        fields = ('job', 'avatar', 'age', 'gender')
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get('avatar')

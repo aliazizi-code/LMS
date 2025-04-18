@@ -5,6 +5,8 @@ from courses.views import (
     TeacherCoursesListListView,
     TeacherLessonManagementViewSet,
     TeacherSeasonManagementViewSet,
+    TeacherFeatureViewSet,
+    TeacherFAQViewSet,
 )
 
 
@@ -36,7 +38,7 @@ urlpatterns = [
     ),
     path(
         'lesson/',
-        TeacherLessonManagementViewSet.as_view({'post': 'create'}),
+        TeacherLessonManagementViewSet.as_view({'post': 'create', 'get': 'list'}),
         name='course-teacher-lesson'
     ),
     path(
@@ -48,6 +50,26 @@ urlpatterns = [
                 'delete': 'destroy',
             }),
         name='course-teacher-lesson-detail'
+    ),
+    path(
+        'feature/',
+        TeacherFeatureViewSet.as_view({'post': 'create', 'get': 'list'}),
+        name='teacher-feature-create-list'
+    ),
+    path(
+        'feature/<int:pk>/',
+        TeacherFeatureViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy',}),
+        name='teacher-feature-delete-update'
+    ),
+    path(
+        'faq/',
+        TeacherFAQViewSet.as_view({'post': 'create', 'get': 'list'}),
+        name='teacher-faq-create-list'
+    ),
+    path(
+        'faq/<int:pk>/',
+        TeacherFAQViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy',}),
+        name='teacher-faq-delete-update'
     ),
     re_path(
         r'^course/(?P<slug>[\w\-آ-ی]+)/?$',

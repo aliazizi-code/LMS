@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from django.conf import settings
 from accounts.models import UserProfile, EmployeeProfile, SocialLink
 from utils import generate_otp_change_phone
 from accounts.docs.schema import *
@@ -49,8 +50,13 @@ class ChangePhoneRequestView(APIView):
             
             otp = generate_otp_change_phone(data['phone'])
             send_otp_to_phone_tasks.delay(otp)
+            
+            data = {}
+            
+            if settings.DEBUG:
+                data['otp'] = otp
                     
-            return Response({"detail": "OTP sent successfully."}, status=status.HTTP_200_OK)
+            return Response(data=data, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -69,14 +75,14 @@ class ChangePhoneVerifyView(APIView):
             
             user.phone = data["phone"]
             user.save()
-            return Response({"detail": "Number changed successfully."}, status=status.HTTP_200_OK)
+            return Response({"detail": "شماره با موفقیت تغییر یافت."}, status=status.HTTP_200_OK)
              
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EmployeeProfileViewSet(viewsets.ViewSet):
     serializer_class = EmployeeProfileSerializer
-    permission_classes = [IsEmployeeForProfile] 
+    permission_classes = [IsAuthenticated, IsEmployeeForProfile] 
 
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
@@ -86,7 +92,14 @@ class EmployeeProfileViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
     def partial_update(self, request):
-        queryset = get_object_or_404(EmployeeProfile, user_profile__user=request.user)
+        queryset = get_object_or_404(
+            EmployeeProfile.objects.select_related(
+                'user_profile__user',
+            ).only(
+                'id', 'user_profile__user__id'    
+            ),
+            user_profile__user=request.user,
+        )
         serializer = self.serializer_class(queryset, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -94,14 +107,21 @@ class EmployeeProfileViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def retrieve(self, request):
-        queryset = get_object_or_404(EmployeeProfile, user_profile__user=request.user)
+        queryset = queryset = get_object_or_404(
+            EmployeeProfile.objects.select_related(
+                'user_profile__user',
+            ).only(
+                'id', 'user_profile__user__id'    
+            ),
+            user_profile__user=request.user,
+        )
         serializer = self.serializer_class(queryset)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class EmployeeSocialLinkViewSet(viewsets.ViewSet):
     serializer_class = EmployeeSocialLinkSerializer
-    permission_classes = [IsEmployeeForProfile]
+    permission_classes = [IsAuthenticated, IsEmployeeForProfile]
     
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
@@ -115,8 +135,12 @@ class EmployeeSocialLinkViewSet(viewsets.ViewSet):
         if not social_media_type:
             return Response({"social_media_type": "این فیلد الزامی است."}, status=status.HTTP_400_BAD_REQUEST)
         queryset = get_object_or_404(
-            SocialLink,
-            employee_profile__user=request.user,
+            SocialLink.objects.select_related(
+                'employee_profile__user_profile__user'    
+            ).only(
+                'id', 'employee_profile__user_profile__user__id'    
+            ),
+            employee_profile__user_profile__user=request.user,
             social_media_type=social_media_type
         )
         serializer = self.serializer_class(queryset, data=request.data, partial=True)
@@ -125,12 +149,15 @@ class EmployeeSocialLinkViewSet(viewsets.ViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def retrieve(self, request):
-        queryset = get_object_or_404(SocialLink, employee_profile__user=request.user)
-        serializer = self.serializer_class(queryset)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
     def list(self, request):
-        queryset = SocialLink.objects.filter(employee_profile__user=request.user)
+        queryset = SocialLink.objects.select_related(
+            'employee_profile__user_profile__user',
+        ).only(
+            'id',
+            'social_media_type',
+            'employee_profile__user_profile__user__id',
+        ).filter(
+            employee_profile__user_profile__user=request.user
+        )
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

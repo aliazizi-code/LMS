@@ -1,15 +1,16 @@
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_delete
+from django.db.models import F
 from django.contrib.postgres.search import SearchVector
 from django.dispatch import receiver
-from courses.models import CourseCategory, Course, Price, Lesson
+from django.utils import timezone
+from courses.models import CourseCategory, Course, Price, Lesson, Season
 
-from utils import get_discounted_price
+from utils import get_discounted_price, update_descendants_active_status
 
 
 @receiver(post_save, sender=CourseCategory)
-def update_active_status_of_descendants(sender, instance, **kwargs):
-    descendants = instance.get_descendants(include_self=True)
-    descendants.update(is_active=instance.is_active)
+def update_course_category_status(sender, instance, **kwargs):
+    update_descendants_active_status(instance)
 
 
 @receiver(post_save, sender=Course)
@@ -45,6 +46,14 @@ def update_urls_video_and_file_on_delete(sender, instance, **kwargs):
             instance.file = f"{instance.url_files}-del"
 
 
+@receiver(pre_save, sender=Season)
+def update_urls_video_and_file_on_delete(sender, instance, **kwargs):
+    if instance.pk:
+        original_season = Season.objects.get(pk=instance.pk)
+        if original_season.is_deleted != instance.is_deleted and instance.is_deleted:
+            instance.title = f"{instance.title} del"
+
+
 @receiver(pre_save, sender=Price)
 def set_final_price(sender, instance, **kwargs):
     final_price = instance.main_price
@@ -56,3 +65,38 @@ def set_final_price(sender, instance, **kwargs):
     
     # TODO: Use Celery for handling time-limited discounts in the future
 
+
+@receiver(post_save, sender=Lesson)
+def increase_count_lesson(sender, instance, created, **kwargs):
+    if created:
+        Course.objects.filter(pk=instance.course.pk).update(
+            count_lessons=F('count_lessons') + 1 
+        )
+
+
+@receiver(post_delete, sender=Lesson)
+def decrease_count_lesson(sender, instance, **kwargs):
+    Course.objects.filter(pk=instance.course.pk).update(
+            count_lessons=F('count_lessons') - 1 
+        )
+
+
+@receiver(pre_save, sender=Course)
+def set_published_at(sender, instance, **kwargs):
+    if not instance.pk:
+        return
+    
+    old = Course.objects.filter(pk=instance.pk).only(
+        'is_published', 'published_at'
+    ).first()
+    
+    if (
+        old
+        and not old.is_published
+        and instance.is_published
+        and not  old.published_at
+    ):
+        instance.published_at = timezone.now()
+
+
+            
