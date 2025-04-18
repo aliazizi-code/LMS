@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth.hashers import is_password_usable
-from accounts.permissions import IsAnonymousUser
+from accounts.permissions import IsAnonymous
 
 from accounts.serializers.password_serializers import (
     BasePasswordSerializer,
@@ -56,7 +56,7 @@ class ChangePasswordView(APIView):
 
 class ForgotPasswordView(APIView):
     serializer_class = ForgotPasswordSerializer
-    permission_classes = [IsAnonymousUser]
+    # permission_classes = [IsAnonymous]
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)

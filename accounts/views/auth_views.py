@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 from rest_framework_simplejwt.views import TokenRefreshView
+from accounts.permissions import IsAnonymous
 
 from accounts.docs.schema import *
 from accounts.decorators import debug_sensitive_ratelimit
@@ -57,7 +58,7 @@ class BaseLoginView(APIView):
     )
 class RequestOTPView(APIView):
     serializer_class = RequestOTPSerializer
-    # permission_classes = [IsAnonymousUser]
+    permission_classes = [IsAnonymous]
 
     @request_otp_docs
     def post(self, request):

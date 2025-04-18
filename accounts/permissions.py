@@ -1,4 +1,4 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
 
@@ -33,9 +33,8 @@ class IsEmployeeForProfile(BasePermission):
         return True
 
 
-# TODO : Bro 00
-class IsAnonymousUser(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        super().has_permission(request, view)
-        # ...
+class IsAnonymous(IsAuthenticated):
+    def has_permission(self, request, view):
+        if super().has_permission(request, view):
+            raise PermissionDenied(_('دسترسی به این بخش صرفاً برای کاربران احراز هویت نشده امکان‌پذیر می‌باشد'))
         return True
