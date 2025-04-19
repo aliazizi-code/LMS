@@ -9,12 +9,13 @@ from accounts.serializers.password_serializers import (
     BasePasswordSerializer,
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
+    CheckPhoneSerializer,
 )
 
 
 class CheckPhoneView(APIView):
     permission_classes = [IsAnonymous]
-    serializer_class = None
+    serializer_class = CheckPhoneSerializer
 
 
 class SetPasswordView(APIView):
