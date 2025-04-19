@@ -50,5 +50,6 @@ class CheckPhoneSerializer(serializers.Serializer):
     phone = PhoneNumberField(max_length=13)
 
     def validate_phone(self, value):
-        get_object_or_404(User, phone=value)
+        if not User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError({'password': 'شماره تلفن وارد شده در سیستم ثبت نشده است.'})
         return value
