@@ -87,3 +87,7 @@ class CheckPhoneView(APIView):
         return Response({
             "phone": serializer.validated_data['phone'] 
         }, status=status.HTTP_200_OK)
+
+
+class ResetPasswordView(APIView):
+    serializer_class = None
