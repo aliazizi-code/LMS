@@ -12,6 +12,11 @@ from accounts.serializers.password_serializers import (
 )
 
 
+class CheckPhoneView(APIView):
+    permission_classes = [IsAnonymous]
+    serializer_class = None
+
+
 class SetPasswordView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = BasePasswordSerializer
