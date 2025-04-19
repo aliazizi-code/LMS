@@ -44,3 +44,11 @@ class ForgotPasswordSerializer(serializers.Serializer):
     def validate_phone(self, value):
         get_object_or_404(User, phone=value)
         return value
+
+
+class CheckPhoneSerializer(serializers.Serializer):
+    phone = PhoneNumberField(max_length=13)
+
+    def validate_phone(self, value):
+        get_object_or_404(User, phone=value)
+        return value
