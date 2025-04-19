@@ -17,6 +17,19 @@ class CheckPhoneView(APIView):
     permission_classes = [IsAnonymous]
     serializer_class = CheckPhoneSerializer
 
+    def get(self, request): 
+        serializer = self.serializer_class(data=request.query_params)
+
+        if not serializer.is_valid():
+            return Response(
+                {"error": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return Response({
+            "phone": serializer.validated_data['phone'] 
+        }, status=status.HTTP_200_OK)
+
 
 class SetPasswordView(APIView):
     permission_classes = [IsAuthenticated]
