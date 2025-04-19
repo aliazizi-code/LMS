@@ -17,7 +17,6 @@ def get_upload_image(instance, filename):
 class ArticleCategory(MPTTModel):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(source_field='name')
-    description = models.TextField()
     parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='childrens')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
