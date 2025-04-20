@@ -61,7 +61,6 @@ urlpatterns = [
     path('password/check-phone/', views.CheckPhoneView.as_view(), name='check-phone'),
     path('password/reset/request/', views.ResetPasswordView.as_view(), name='reset-password-request'),
     path('password/reset/verify/', views.ResetPasswordView.as_view(), name='reset-password-verify'),
-    path('password/reset/', views.ForgotPasswordView.as_view(), name='forgot-password-request'),
     path('password/change/', views.ChangePasswordView.as_view(), name='change-password'),
     path('password/set/', views.SetPasswordView.as_view(), name='set-password'),
     # endregion
