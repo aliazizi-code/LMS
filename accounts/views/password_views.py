@@ -12,7 +12,7 @@ from accounts.serializers.password_serializers import (
     BasePasswordSerializer,
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
-    BaseCheckPhoneSerializer,
+    CheckPhoneSerializer,
 )
 
 
@@ -76,7 +76,7 @@ class ForgotPasswordView(APIView):
 
 class CheckPhoneView(APIView):
     permission_classes = [IsAnonymous]
-    serializer_class = BaseCheckPhoneSerializer
+    serializer_class = CheckPhoneSerializer
 
     def get(self, request): 
         serializer = self.serializer_class(data=request.query_params)
@@ -93,7 +93,7 @@ class CheckPhoneView(APIView):
 
 
 class ResetPasswordView(APIView):
-    serializer_class = [BaseCheckPhoneSerializer]
+    serializer_class = [CheckPhoneSerializer]
 
     def get(self, request):
         serializer = self.serializer_class(data=request.query_params)

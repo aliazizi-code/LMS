@@ -47,7 +47,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
         return value
 
 
-class BaseCheckPhoneSerializer(serializers.Serializer):
+class CheckPhoneSerializer(serializers.Serializer):
     phone = PhoneNumberField(max_length=13)
 
     def validate_phone(self, value):
