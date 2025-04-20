@@ -117,11 +117,18 @@ class ResetPasswordView(APIView):
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
 
-        # if serializer.is_valid():
-        #     data = serializer.validateed_data
-        #     user = get_object_or_404(User, phone=value)
-        #     password = data['password']
-        #     user.get
+        if serializer.is_valid():
+            data = serializer.validateed_data
+            user = data['user']
+            password = data['password']
+            user.set_password(password)
+            user.save()
+            
+            return Response({}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        
 
 
 
