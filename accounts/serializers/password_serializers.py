@@ -60,12 +60,15 @@ class ResetPasswordSerializer(BasePasswordSerializer):
     phone = PhoneNumberField(max_length=13)
     otp = serializers.IntegerField(required=True)
 
-    def validate_otp(self, value):
-        phone = self.initial_data.get('phone')
+    def validate(self, attrs):
+        phone = attrs.get('phone')
+        otp = attrs.get('otp')
+        user = get_object_or_404(User, phone)
 
-        if not verify_otp_reset_password(phone, value):
-            raise serializers.ValidationError("Invalid OTP provided. Please try again.")
-        return value
+        if not verify_otp_reset_password(phone, otp):
+            raise serializers.ValidationError({'otp': 'Invalid OTP provided. Please try again.'})
+        attrs['user'] = user
+        return attrs
     
 
 

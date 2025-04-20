@@ -13,6 +13,7 @@ from accounts.serializers.password_serializers import (
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
     CheckPhoneSerializer,
+    ResetPasswordSerializer,
 )
 
 
@@ -112,9 +113,19 @@ class ResetPasswordView(APIView):
                 status=status.HTTP_200_OK
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-            
+    
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
 
-        
+        # if serializer.is_valid():
+        #     data = serializer.validateed_data
+        #     user = get_object_or_404(User, phone=value)
+        #     password = data['password']
+        #     user.get
+
+
+
+    
+
         
 
