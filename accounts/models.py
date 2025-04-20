@@ -1,10 +1,10 @@
 from django.db import models
-from django.db.models import Prefetch
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, Group
 from django.utils.translation.trans_null import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from imagekit.models import ImageSpecField
+from imagekit.cachefiles import ImageCacheFile
 from mptt.models import MPTTModel, TreeForeignKey
 from taggit.managers import TaggableManager
 
@@ -105,6 +105,14 @@ class JobCategory(MPTTModel):
         verbose_name=_('والد')
     )
     is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ایجاد')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
 
     def __str__(self):
         return self.title
@@ -122,16 +130,51 @@ class JobCategory(MPTTModel):
 
 
 class Job(models.Model):
-    title = models.CharField(max_length=200, verbose_name=_('عنوان'))
-    category = models.ManyToManyField(JobCategory, related_name='jobs', verbose_name=_('دسته بندی'))
+    name = models.CharField(max_length=200, verbose_name=_('عنوان'))
+    is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
+    category = models.ManyToManyField(
+        JobCategory,
+        related_name='jobs',
+        blank=True,
+        verbose_name=_('دسته بندی')
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ایجاد')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
 
     def __str__(self):
-        return self.title
+        return self.name
 
     class Meta:
         verbose_name = _('شغل')
         verbose_name_plural = _('شغل ها')
-        ordering = ['title']
+        ordering = ['name']
+
+
+class Skill(models.Model):
+    name = models.CharField(max_length=100, unique=True, verbose_name=_('نام مهارت'))
+    is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ایجاد')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = _('مهارت')
+        verbose_name_plural = _('مهارت ها')
+        ordering = ['-id']
 
 
 class UserProfile(models.Model):
@@ -149,15 +192,13 @@ class UserProfile(models.Model):
         Job,
         on_delete=models.CASCADE,
         related_name='user_profile',
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=_('شغل')
     )
     avatar = models.ImageField(
         upload_to=avatar_get_upload_to,
         validators=[validate_image_size],
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=_('عکس پروفایل')
     )
     avatar_thumbnail = ImageSpecField(
@@ -165,28 +206,42 @@ class UserProfile(models.Model):
         format='JPEG',
         options={'quality': 80}
     )
-    skills = TaggableManager(
+    bio = models.TextField(
+        blank=True, null=True,
+        verbose_name=_('بیوگرافی')
+    )
+    skills = models.ManyToManyField(
+        Skill,
+        related_name='user_profile',
         blank=True,
         verbose_name=_('مهارت ها'),
+        help_text=_('مهارت‌های تخصصی کاربر'),
     )
     age = models.PositiveSmallIntegerField(
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=_('سن')
     )
     gender = models.CharField(
         max_length=1,
         choices=Gender.choices,
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=_('جنسیت')
     )
-
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ثبت نام')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
+    
     class Meta:
         verbose_name = _('پروفایل کاربر')
         verbose_name_plural = _('پروفایل کاربران')
         ordering = ['-id']
         db_table = 'user_profile'
+    
     def __str__(self):
         return str(self.user)
 
@@ -200,9 +255,9 @@ class EmployeeProfileManager(models.Manager):
             user_profile__age__isnull=False,
             user_profile__gender__isnull=False,
             user_profile__job__isnull=False,
-            bio__isnull=False,
+            user_profile__bio__isnull=False,
         ).exclude(
-            bio=''
+            user_profile__bio=''
         )
 
 
@@ -223,9 +278,6 @@ class EmployeeProfile(models.Model):
                 message=_('نام کاربری باید فقط شامل حروف کوچک انگلیسی و اعداد باشد و نباید فاصله یا علامت خاصی داشته باشد.')
             )
         ],
-    )
-    bio = models.TextField(
-        verbose_name=_('بیوگرافی')
     )
     roles = TaggableManager(
         blank=True,
@@ -265,9 +317,9 @@ class SocialLink(models.Model):
         instagram = 'instagram', _('اینستاگرام')
         linkedin = 'linkedin', _('لینکدین')
         x = 'x', _('ایکس')
-        threads = 'threads', _('تردز')
-        facebook = 'facebook', _('فیسبوک')
-        youtube = 'youtube', _('یوتیوب')
+        # threads = 'threads', _('تردز')
+        # facebook = 'facebook', _('فیسبوک')
+        # youtube = 'youtube', _('یوتیوب')
         github = 'github', _('گیت‌هاب')
         gitlab = 'gitlab', _('گیت‌لب')
     
@@ -286,14 +338,6 @@ class SocialLink(models.Model):
         related_name='social_link',
         verbose_name=_('پروفایل کارمند'),
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_('تاریخ ثبت نام')
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        verbose_name=_('تاریخ ویرایش')
-    )
     
     def __str__(self):
         return f"{self.employee_profile.username} - {self.social_media_type}"
@@ -309,9 +353,9 @@ class SocialLink(models.Model):
             self.SocialMediaType.instagram: "https://www.instagram.com/",
             self.SocialMediaType.linkedin: "https://www.linkedin.com/",
             self.SocialMediaType.x: "https://x.com/",
-            self.SocialMediaType.threads: "https://www.threads.net/",
-            self.SocialMediaType.facebook: "https://www.facebook.com/",
-            self.SocialMediaType.youtube: "https://www.youtube.com/",
+            # self.SocialMediaType.threads: "https://www.threads.net/",
+            # self.SocialMediaType.facebook: "https://www.facebook.com/",
+            # self.SocialMediaType.youtube: "https://www.youtube.com/",
             self.SocialMediaType.github: "https://github.com/",
             self.SocialMediaType.gitlab: "https://gitlab.com/",
         }
