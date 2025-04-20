@@ -54,4 +54,8 @@ class BaseCheckPhoneSerializer(serializers.Serializer):
             raise serializers.ValidationError({'phone': 'شماره تلفن وارد شده در سیستم ثبت نشده است.'})
         return value
     
+
+class ResetPasswordSerializer(serializers.Serializer):
+    otp = serializers.IntegerField(required=True)
+    
     
