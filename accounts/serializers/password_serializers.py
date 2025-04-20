@@ -63,7 +63,7 @@ class ResetPasswordSerializer(BasePasswordSerializer):
     def validate(self, attrs):
         phone = attrs.get('phone')
         otp = attrs.get('otp')
-        user = get_object_or_404(User, phone)
+        user = get_object_or_404(User, phone=phone)
 
         if not verify_otp_reset_password(phone, otp):
             raise serializers.ValidationError({'otp': 'Invalid OTP provided. Please try again.'})
