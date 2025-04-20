@@ -11,7 +11,6 @@ from django.conf import settings
 from accounts.serializers.password_serializers import (
     BasePasswordSerializer,
     ChangePasswordSerializer,
-    ForgotPasswordSerializer,
     CheckPhoneSerializer,
     ResetPasswordSerializer,
 )
