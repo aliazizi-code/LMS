@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth.hashers import is_password_usable
 from accounts.permissions import IsAnonymous
+from utils.otp import generate_otp_reset_password
+from accounts.tasks import send_otp_to_phone_tasks
+from django.conf import settings
 
 from accounts.serializers.password_serializers import (
     BasePasswordSerializer,
@@ -92,6 +95,26 @@ class CheckPhoneView(APIView):
 class ResetPasswordView(APIView):
     serializer_class = [CheckPhoneSerializer]
 
-   
+    def get(self, request):
+        serializer = self.serializer_class(data=request.query_params)
+
+        if serializer.is_valid():
+            data = serializer.validated_data
+            phone = data['phone']
+            otp = generate_otp_reset_password(phone)
+            send_otp_to_phone_tasks.delay(otp)
+
+            if settings.DEBUG:
+                data['otp'] = otp
+            
+            return Response(
+                data=data,
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            
+
+        
         
 
