@@ -91,3 +91,16 @@ def verify_otp_change_phone(user_id, otp):
 
 def delete_otp_change_phone(user_id):
     OTPManager.delete_otp(user_id, prefix='otp_secret_change_phone')
+
+# =============================================
+# OTP Functions for Reset Password
+# ==============================================
+
+def generate_otp_reset_password(user_id):
+    return OTPManager.generate_otp(user_id, prefix='otp_secret_reset_password')
+
+def verify_otp_reset_password(user_id, otp):
+    return OTPManager.verify_otp(user_id, otp, prefix='otp_secret_reset_password')
+
+def delete_otp_reset_password(user_id):
+    OTPManager.delete_otp(user_id, prefix='otp_secret_reset_password')

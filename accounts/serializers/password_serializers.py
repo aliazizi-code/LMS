@@ -53,3 +53,5 @@ class CheckPhoneSerializer(serializers.Serializer):
         if not User.objects.filter(phone=value).exists():
             raise serializers.ValidationError({'phone': 'شماره تلفن وارد شده در سیستم ثبت نشده است.'})
         return value
+    
+    
