@@ -55,7 +55,9 @@ class BaseCheckPhoneSerializer(serializers.Serializer):
         return value
     
 
-class ResetPasswordSerializer(serializers.Serializer):
+class ResetPasswordSerializer(BaseCheckPhoneSerializer, BasePasswordSerializer):
     otp = serializers.IntegerField(required=True)
+
+
     
     
