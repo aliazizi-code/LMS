@@ -26,6 +26,7 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source='user_profile.user.full_name')
     social_links = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
+    bio = serializers.SerializerMethodField()
     
 
     class Meta:
@@ -36,12 +37,15 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
         )
         
     def get_skills(self, obj):
-        skills = obj.user_profile.skills.names()
+        skills = obj.user_profile.skills.filter(is_active=True).values_list('name', flat=True)
         return list(skills)
         
     def get_roles(self, obj):
         roles = obj.roles.names()
         return list(roles)
+    
+    def get_bio(self, obj):
+        return str(obj.user_profile.bio)
         
     def get_groups(self, obj):
         group_names = obj.user_profile.user.groups.filter(
