@@ -54,15 +54,15 @@ class BaseLoginView(APIView):
 
 @method_decorator(
     debug_sensitive_ratelimit(
-        key='ip', rate=f'1/{OTP_TIMEOUT}s', method='POST', block=True), name='dispatch'
+        key='ip', rate=f'1/{OTP_TIMEOUT}s', method='GET', block=True), name='dispatch'
     )
 class RequestOTPView(APIView):
     serializer_class = RequestOTPSerializer
     permission_classes = [IsAnonymous]
 
     @request_otp_docs
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+    def get(self, request):
+        serializer = self.serializer_class(data=request.query_params)
 
         if serializer.is_valid():
             data = serializer.validated_data
