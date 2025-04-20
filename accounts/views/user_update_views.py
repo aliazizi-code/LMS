@@ -1,21 +1,16 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 from accounts.models import UserProfile, EmployeeProfile, SocialLink
 from utils import generate_otp_change_phone
 from accounts.docs.schema import *
 from accounts.tasks import send_otp_to_phone_tasks
 from accounts.permissions import IsEmployeeForProfile
-from accounts.serializers import (
-    UserProfileSerializer,
-    ChangePhoneRequestSerializer,
-    ChangePhoneVerifySerializer,
-    EmployeeProfileSerializer,
-    EmployeeSocialLinkSerializer,
-)
+from accounts.serializers import *
 
 
 @user_profile_viewset_docs
@@ -75,7 +70,7 @@ class ChangePhoneVerifyView(APIView):
             
             user.phone = data["phone"]
             user.save()
-            return Response({"detail": "شماره با موفقیت تغییر یافت."}, status=status.HTTP_200_OK)
+            return Response({"detail": _("شماره با موفقیت تغییر یافت.")}, status=status.HTTP_200_OK)
              
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -93,11 +88,7 @@ class EmployeeProfileViewSet(viewsets.ViewSet):
         
     def partial_update(self, request):
         queryset = get_object_or_404(
-            EmployeeProfile.objects.select_related(
-                'user_profile__user',
-            ).only(
-                'id', 'user_profile__user__id'    
-            ),
+            EmployeeProfile,
             user_profile__user=request.user,
         )
         serializer = self.serializer_class(queryset, data=request.data, partial=True)
@@ -108,11 +99,7 @@ class EmployeeProfileViewSet(viewsets.ViewSet):
     
     def retrieve(self, request):
         queryset = queryset = get_object_or_404(
-            EmployeeProfile.objects.select_related(
-                'user_profile__user',
-            ).only(
-                'id', 'user_profile__user__id'    
-            ),
+            EmployeeProfile.objects.only('username'),
             user_profile__user=request.user,
         )
         serializer = self.serializer_class(queryset)
@@ -161,3 +148,15 @@ class EmployeeSocialLinkViewSet(viewsets.ViewSet):
         )
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# @method_decorator(cache_page(60 * 60), name='dispatch')
+class SkillListView(generics.ListAPIView):
+    serializer_class = SkillListSerializer
+    queryset = Skill.objects.filter(is_active=True)
+  
+
+# @method_decorator(cache_page(60 * 60), name='dispatch')
+class JobListView(generics.ListAPIView):
+    serializer_class = JobListSerializer
+    queryset = Job.objects.filter(is_active=True)

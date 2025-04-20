@@ -11,7 +11,7 @@ from accounts.serializers import (
 )
 
 
-@method_decorator(cache_page(60 * 60), name='dispatch')
+# @method_decorator(cache_page(60 * 60), name='dispatch')
 class EmployeeListView(APIView):
     serializer_class = EmployeeListSerializer
 
@@ -21,7 +21,7 @@ class EmployeeListView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@method_decorator(cache_page(60 * 60), name='dispatch')
+# @method_decorator(cache_page(60 * 60), name='dispatch')
 class EmployeeDetailView(APIView):
     serializer_class = EmployeeDetailSerializer
 
