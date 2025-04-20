@@ -94,10 +94,9 @@ class CheckPhoneView(APIView):
 
 
 class ResetPasswordView(APIView):
-    serializer_class = [CheckPhoneSerializer]
-
+    
     def get(self, request):
-        serializer = self.serializer_class(data=request.query_params)
+        serializer = CheckPhoneSerializer(data=request.query_params)
 
         if serializer.is_valid():
             data = serializer.validated_data
@@ -123,7 +122,7 @@ class ResetPasswordView(APIView):
             password = data['password']
             user.set_password(password)
             user.save()
-            
+
             return Response({}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
