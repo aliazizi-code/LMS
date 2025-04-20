@@ -1,6 +1,7 @@
 from django.core.validators import RegexValidator
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
+from utils.otp import verify_otp_reset_password
 
 from accounts.serializers import PhoneNumberField
 from accounts.models import User
@@ -57,6 +58,14 @@ class BaseCheckPhoneSerializer(serializers.Serializer):
 
 class ResetPasswordSerializer(BaseCheckPhoneSerializer, BasePasswordSerializer):
     otp = serializers.IntegerField(required=True)
+
+    def validate_otp(self, value):
+        phone = self.initial_data.get('phone')
+
+        if not verify_otp_reset_password(phone, value):
+            raise serializers.ValidationError("Invalid OTP provided. Please try again.")
+        return value
+    
 
 
     
