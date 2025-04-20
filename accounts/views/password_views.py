@@ -76,7 +76,7 @@ class ForgotPasswordView(APIView):
 
 class CheckPhoneView(APIView):
     permission_classes = [IsAnonymous]
-    serializer_class = CheckPhoneSerializer
+    serializer_class = BaseCheckPhoneSerializer
 
     def get(self, request): 
         serializer = self.serializer_class(data=request.query_params)
