@@ -56,7 +56,8 @@ class BaseCheckPhoneSerializer(serializers.Serializer):
         return value
     
 
-class ResetPasswordSerializer(BaseCheckPhoneSerializer, BasePasswordSerializer):
+class ResetPasswordSerializer(BasePasswordSerializer):
+    phone = PhoneNumberField(max_length=13)
     otp = serializers.IntegerField(required=True)
 
     def validate_otp(self, value):
