@@ -59,22 +59,6 @@ class ChangePasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ForgotPasswordView(APIView):
-    serializer_class = ForgotPasswordSerializer
-    # permission_classes = [IsAnonymous]
-
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid():
-            data = serializer.validated_data
-            return Response(
-                data={'phone': data['phone'],
-                      'has_user': True},
-                status=status.HTTP_200_OK
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class CheckPhoneView(APIView):
     permission_classes = [IsAnonymous]
     serializer_class = CheckPhoneSerializer
