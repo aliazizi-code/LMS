@@ -90,4 +90,8 @@ class CheckPhoneView(APIView):
 
 
 class ResetPasswordView(APIView):
-    serializer_class = None
+    serializer_class = [CheckPhoneSerializer]
+
+   
+        
+
