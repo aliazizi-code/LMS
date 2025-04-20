@@ -7,14 +7,13 @@ class CourseFilter(filters.FilterSet):
     order_by = filters.OrderingFilter(
         fields=(
             ('price__final_price', 'price'),
-            ('created_at', 'created'),
+            ('published_at', 'published'),
         )
     )
     is_free = filters.BooleanFilter(method='filter_by_is_free')
     price = filters.RangeFilter(field_name='price__final_price')
     is_discount = filters.BooleanFilter(method='filter_by_discount')
     level = filters.CharFilter(method='filter_by_learning_path')
-    status = filters.ChoiceFilter(field_name='status', choices=Course.STATUS.choices)
     category = filters.CharFilter(method='filter_by_category')
 
 
@@ -70,4 +69,4 @@ class CourseFilter(filters.FilterSet):
     
     class Meta:
         model = Course
-        fields = ['order_by', 'is_free', 'price', 'is_discount', 'level', 'status', 'category']
+        fields = ['order_by', 'is_free', 'price', 'is_discount', 'level', 'category']

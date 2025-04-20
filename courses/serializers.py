@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from taggit.serializers import TagListSerializerField, TaggitSerializer
 
 from accounts.models import User
@@ -34,7 +35,7 @@ class BaseLessonDisplaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ('title', 'course', 'description', 'url_video', 'url_files', 'duration')
+        fields = ('title', 'course', 'url_video', 'url_files', 'duration')
 
 
 class BaseSeasonDisplaySerializer(serializers.ModelSerializer):
@@ -43,7 +44,7 @@ class BaseSeasonDisplaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Season
-        fields = ('title', 'description','duration', 'course', 'lessons')
+        fields = ('title', 'course', 'lessons')
     
     def get_lessons(self, obj):
         lessons = Lesson.objects.filter(season=obj, is_deleted=False)
@@ -63,11 +64,10 @@ class TeacherSeasonManagementSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Season
-        fields = ('id', 'title', 'description', 'course_slug', 'is_published', 'order')
+        fields = ('id', 'title', 'course_slug', 'order')
         read_only_fields = ('id',)
     
     def create(self, validated_data):
-        validated_data.pop('is_published')
         course_slug = validated_data.pop('course_slug')
         teacher = self.context['request'].user
         
@@ -110,7 +110,7 @@ class TeacherLessonManagementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = (
-            'id', 'title', 'description', 'season_id',
+            'id', 'title', 'season_id',
             'is_published', 'url_files', 'url_video',
             'course_slug', 'course'
         )
@@ -154,7 +154,7 @@ class TeacherLessonManagementSerializer(serializers.ModelSerializer):
 
 class TeacherSeasonDisplaySerializer(BaseSeasonDisplaySerializer):
     class Meta(BaseSeasonDisplaySerializer.Meta):
-        fields = BaseSeasonDisplaySerializer.Meta.fields + ('id', 'is_published', 'created_at', 'updated_at')
+        fields = BaseSeasonDisplaySerializer.Meta.fields + ('id', 'created_at', 'updated_at')
 
 
 class TeacherCoursesSerializer(BaseCourseSerializer):
@@ -164,7 +164,7 @@ class TeacherCoursesSerializer(BaseCourseSerializer):
     """
 
     class Meta(BaseCourseSerializer.Meta):
-        fields = BaseCourseSerializer.Meta.fields + ('count_lessons',)
+        fields = BaseCourseSerializer.Meta.fields + ('is_published',)
  
 
 class TeacherLessonDisplaySerializer(BaseLessonDisplaySerializer):
@@ -185,46 +185,41 @@ class TeacherCourseDetailManagementSerializer(TaggitSerializer, serializers.Mode
         queryset=CourseCategory.objects.filter(is_active=True)
     )
     learning_path = serializers.SerializerMethodField(read_only=True)
-    main_price = serializers.IntegerField(source='price.main_price', read_only=True)
-    final_price = serializers.IntegerField(source='price.final_price', read_only=True)
-    seasons = TeacherSeasonDisplaySerializer(many=True, read_only=True)
-    lessons_no_season = serializers.SerializerMethodField(read_only=True)
-
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
     start_level = serializers.IntegerField(required=True, write_only=True)
     end_level = serializers.IntegerField(default=None, write_only=True)
+    main_price = serializers.IntegerField(source='price.main_price', read_only=True)
+    final_price = serializers.IntegerField(source='price.final_price', read_only=True)
     
     class Meta:
         model = Course
         fields = (
             'title', 'slug', 'description', 'short_description', 'categories',
-            'tags', 'start_level', 'end_level', 'banner', 'status', 'language',
-            'is_published', 'learning_path', 'start_date', 'url_video',
-            'duration', 'created_at', 'updated_at', 'last_lesson_update',
-            'main_price', 'final_price', 'count_lessons', 'count_students',
-            'has_seasons', 'seasons', 'lessons_no_season', 'prerequisites',
+            'tags', 'start_level', 'end_level', 'status', 'status_display',
+            'learning_path', 'start_date', 'url_video', 'duration',
+            'created_at', 'updated_at', 'last_lesson_update', 'language',
+            'count_lessons', 'has_seasons', 'prerequisites', 'is_published',
+            'main_price', 'final_price'
         )
         extra_kwargs = {
             # write_only
             'start_level': {'write_only': True},
             'end_level': {'write_only': True},
+            'status': {'write_only': True},
             
             # read only
             'duration': {'read_only': True},
             'created_at': {'read_only': True},
             'updated_at': {'read_only': True},
+            'is_published': {'read_only': True},
             'count_lessons': {'read_only': True},
-            'count_students': {'read_only': True},
             'slug': {'read_only': True},
-            'main_price': {'read_only': True},
-            'final_price': {'read_only': True},
             'learning_path': {'read_only': True},
-            'seasons': {'read_only': True},
-            'lessons_no_season': {'read_only': True},
         }
         
     def create(self, validated_data):
-        validated_data.pop('is_published')
         validated_data.pop('has_seasons')
+        validated_data.pop('is_published')
         tags = validated_data.pop('tags')
         categories = validated_data.pop('categories')
         start_level = validated_data.pop('start_level')
@@ -251,28 +246,11 @@ class TeacherCourseDetailManagementSerializer(TaggitSerializer, serializers.Mode
     
     def get_learning_path(self, obj):
         return obj.learning_path.title() if obj.learning_path else None
-
-    def get_lessons_no_season(self, obj):
-        lessons = Lesson.objects.filter(course=obj, season=None, is_deleted=False)
-        return TeacherLessonDisplaySerializer(lessons, many=True).data
-    
-    def validate_is_published(self, value):
-        if value is False:
-            if self.instance and self.instance.is_published:
-                raise serializers.ValidationError(
-                    "امکان تغییر وضعیت از انتشار به عدم انتشار وجود ندارد. "
-                )
+ 
+    def validate_status(self, value):
+        if value == 'CANCELLED':
+            raise serializers.ValidationError(_('وضعیت "CANCELLED" شده قابل قبلا نیست'))
         return value
-
-
-class TeacherCoursesSerializer(BaseCourseSerializer):
-    """
-    This serializer is used to display a list of courses created by the specific teacher.
-    It allows the teacher to view their own courses.
-    """
-
-    class Meta(BaseCourseSerializer.Meta):
-        fields = BaseCourseSerializer.Meta.fields
 
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
@@ -357,16 +335,26 @@ class UsersCourseListSerializer(BaseCourseSerializer):
     This serializer is used to display an overview of all courses for users.
     It includes information about each course and the related teacher's details.
     """
+    
     teacher = serializers.SerializerMethodField()
+    status = serializers.CharField(source='get_status_display')
 
     class Meta(BaseCourseSerializer.Meta):
-        fields = BaseCourseSerializer.Meta.fields + ('teacher',)
+        fields = BaseCourseSerializer.Meta.fields + ('status', 'teacher')
         
     def get_teacher(self, obj):
         return {
             "full_name": f"{obj.teacher_first_name.strip()} {obj.teacher_last_name.strip()}",
             "username": obj.teacher_username,
         }
+    
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        if not instance.status == 'UPCOMING':
+            representation.pop('status', None)
+
+        return representation
 
 
 class UserFeatureListSerializer(serializers.ModelSerializer):
@@ -383,7 +371,6 @@ class UserFAQListSerializer(serializers.ModelSerializer):
 
 class UserCourseDetailSerializer(TaggitSerializer, serializers.ModelSerializer):
     tags = TagListSerializerField()
-    # teacher = TeacherProfileSerializer(read_only=True)
     teacher = serializers.SerializerMethodField(read_only=True)
     main_price = serializers.IntegerField(source='price.main_price', read_only=True)
     final_price = serializers.IntegerField(source='price.final_price', read_only=True)
@@ -404,22 +391,48 @@ class UserCourseDetailSerializer(TaggitSerializer, serializers.ModelSerializer):
             'start_date', 'tags', 'feature',
             'duration', 'has_seasons', 'seasons',
             'lessons', 'language', 'prerequisites', 'faq',
-            'last_lesson_update'
+            'last_lesson_update', 'url_video'
         )
     
     def get_lessons(self, obj):
         if obj.has_seasons:
             return None
-
+        
         lessons = getattr(obj, 'prefetched_lessons', [])
-        return UserLessonDisplaySerializer(lessons, many=True).data
+        return [
+            {
+                "title": lesson.title,
+                "duration": lesson.duration,
+                "url_video": lesson.url_video,
+                "url_files": lesson.url_files,
+            }
+            for lesson in lessons
+        ]
+
 
     def get_seasons(self, obj):
         if not obj.has_seasons:
             return None
 
-        seasons = getattr(obj, 'prefetched_seasons', [])
-        return UserSeasonDisplaySerializer(seasons, many=True).data
+        lessons_by_season = {}
+        for lesson in getattr(obj, 'prefetched_lessons', []):
+            if lesson.season_id not in lessons_by_season:
+                lessons_by_season[lesson.season_id] = []
+            lessons_by_season[lesson.season_id].append({
+                "title": lesson.title,
+                "duration": lesson.duration,
+                "url_video": lesson.url_video,
+            })
+
+        seasons = []
+        for season in getattr(obj, 'prefetched_seasons', []):
+            seasons.append({
+                "title": season.title,
+                "lessons": lessons_by_season.get(season.id, [])
+            })
+
+        return seasons
+
     
     def get_faq(self, obj):
         faqs = getattr(obj, 'prefetched_faqs', [])

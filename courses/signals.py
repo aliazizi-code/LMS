@@ -14,12 +14,6 @@ def update_course_category_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Course)
-def create_price_for_course(sender, instance, created, **kwargs):
-    if created:
-        Price.objects.create(course=instance, main_price=0, final_price=0)
-
-
-@receiver(post_save, sender=Course)
 def update_search_vector(sender, instance, **kwargs):
     Course.objects.filter(
         id=instance.id
@@ -82,11 +76,12 @@ def decrease_count_lesson(sender, instance, **kwargs):
 
 
 @receiver(pre_save, sender=Course)
+@receiver(pre_save, sender=Lesson)
 def set_published_at(sender, instance, **kwargs):
-    if not instance.pk:
+    if not instance.pk or not hasattr(instance, 'is_published'):
         return
     
-    old = Course.objects.filter(pk=instance.pk).only(
+    old = sender.objects.filter(pk=instance.pk).only(
         'is_published', 'published_at'
     ).first()
     
@@ -94,7 +89,7 @@ def set_published_at(sender, instance, **kwargs):
         old
         and not old.is_published
         and instance.is_published
-        and not  old.published_at
+        and not old.published_at
     ):
         instance.published_at = timezone.now()
 

@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
-from django.urls import reverse
 
 from . import models
 from mptt.admin import DraggableMPTTAdmin
@@ -152,37 +151,34 @@ class CourseAdmin(admin.ModelAdmin):
 class CourseCategoryAdmin(DraggableMPTTAdmin):
     list_display = ("tree_actions",'indented_title', 'is_active')
     autocomplete_fields = ('parent',)
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'updated_at')
     list_filter = ('is_active',)
     search_fields = ('title',)
+    
+    fieldsets = (
+        (None, {'fields': ('title', 'slug', 'parent', 'is_active', 'created_at', 'updated_at')}),
+    )
 
 
 class SeasonAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'course', 'is_published', 'is_deleted')
+    list_display = ('id', 'title', 'course', 'is_deleted')
     list_display_links = ('id', 'title')
     search_fields = ('title',)
-    list_filter = ('is_published', 'course', 'is_deleted')
+    list_filter = ('course', 'is_deleted')
     autocomplete_fields = ('course',)
-    readonly_fields = ('id', 'duration', 'course_slug', 'course_id')
-    actions = ['publish_season', 'unpublish_season', 'deleted_season', 'undeleted_season']
+    readonly_fields = ('id', 'duration', 'course_slug', 'course_id', 'created_at', 'updated_at')
+    actions = ['deleted_season', 'undeleted_season']
     
     fieldsets = (
         (None, {
             'fields': (
                 'id', 'course_slug', 'course_id',
-                'title', 'description', 'duration',
-                'course', 'order', 'is_published', 'is_deleted',
+                'title', 'duration', 'course',
+                'order', 'is_deleted',
+                'created_at', 'updated_at',
             )
         }),
     )
-    
-    def publish_season(self, request, queryset):
-        queryset.update(is_published=True)
-        self.message_user(request, _("Selected season have been published."))
-
-    def unpublish_season(self, request, queryset):
-        queryset.update(is_published=False)
-        self.message_user(request, "Selected season have been unpublished.")
         
     def deleted_season(self, request, queryset):
         queryset.update(is_deleted=True)
@@ -196,8 +192,6 @@ class SeasonAdmin(admin.ModelAdmin):
         return obj.course.slug if obj.course else None
 
     course_slug.short_description = "Course Slug"
-    publish_season.short_description = _("Publish selected season")
-    unpublish_season.short_description = _("Unpublish selected season")
     deleted_season.short_description = _("Deleted selected season")
     undeleted_season.short_description = _("Undeleted selected season")
 
@@ -208,15 +202,17 @@ class LessonAdmin(admin.ModelAdmin):
     search_fields = ('title',)
     list_filter = ('is_published', 'course', 'is_deleted')
     autocomplete_fields = ('course',)
-    readonly_fields = ('id', 'duration', 'course_slug', 'course_id')
+    readonly_fields = ('id', 'duration', 'course_slug', 'course_id', 'created_at', 'updated_at', 'published_at')
     actions = ['publish_lesson', 'unpublish_lesson', 'deleted_lesson', 'undeleted_lesson']
     
     fieldsets = (
         (None, {
             'fields': (
                 'id', 'course_slug', 'course_id',
-                'title', 'description', 'duration',
-                'course', 'order', 'season', 'is_published', 'is_deleted',
+                'title', 'duration',
+                'course', 'order', 'season',
+                'is_published', 'is_deleted',
+                'created_at', 'updated_at', 'published_at'
             )
         }),
     )
@@ -255,3 +251,4 @@ admin.site.register(models.Feature, FeatureAdmin)
 admin.site.register(models.CourseCategory, CourseCategoryAdmin)
 admin.site.register(models.LearningPath)
 admin.site.register(models.LearningLevel)
+admin.site.register(models.Price)
