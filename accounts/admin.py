@@ -100,8 +100,8 @@ admin.site.register(models.Job)
 admin.site.register(models.Skill)
 admin.site.register(models.UserProfile, UserProfileAdmin)
 admin.site.register(models.EmployeeProfile, EmployeeProfileAdmin)
-
 admin.site.register(models.SocialLink)
+
 
 admin.site.unregister(Group)
 admin.site.register(Group, GroupAdmin)
