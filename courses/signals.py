@@ -37,7 +37,7 @@ def update_urls_video_and_file_on_delete(sender, instance, **kwargs):
         original_lesson = Lesson.objects.get(pk=instance.pk)
         if original_lesson.is_deleted != instance.is_deleted and instance.is_deleted:
             instance.video = f"{instance.url_video}-del"
-            instance.file = f"{instance.url_files}-del"
+            instance.file = f"{instance.url_attachment}-del"
 
 
 @receiver(pre_save, sender=Season)
