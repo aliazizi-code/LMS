@@ -4,7 +4,6 @@ from django.utils.translation.trans_null import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from imagekit.models import ImageSpecField
-from imagekit.cachefiles import ImageCacheFile
 from mptt.models import MPTTModel, TreeForeignKey
 from taggit.managers import TaggableManager
 
@@ -17,8 +16,11 @@ from utils import (
 )
 
 
-def avatar_get_upload_to(instance, filename):
-    return get_upload_to(instance.pk, filename, "users/avatar")
+def get_upload_avatar(instance, filename):
+    model_name = 'User'
+    object_name = f"{instance.id}"
+    folder_type = 'avatar'
+    return get_upload_to(instance, filename, model_name, object_name, folder_type)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -196,7 +198,7 @@ class UserProfile(models.Model):
         verbose_name=_('شغل')
     )
     avatar = models.ImageField(
-        upload_to=avatar_get_upload_to,
+        upload_to=get_upload_avatar,
         validators=[validate_image_size],
         blank=True, null=True,
         verbose_name=_('عکس پروفایل')
