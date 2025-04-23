@@ -1,6 +1,5 @@
 from django.urls import path
-
-from . import views
+from accounts import views
 
 urlpatterns = [
     # region Authentication endpoints
