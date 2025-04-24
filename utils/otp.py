@@ -84,6 +84,7 @@ def delete_otp_auth_num(user_id):
 # ==============================================
 
 def generate_otp_change_phone(user_id):
+    delete_otp_change_phone(user_id)
     return OTPManager.generate_otp(user_id, prefix='otp_secret_change_phone')
 
 def verify_otp_change_phone(user_id, otp):

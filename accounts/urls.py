@@ -1,6 +1,5 @@
 from django.urls import path
-
-from . import views
+from accounts import views
 
 urlpatterns = [
     # region Authentication endpoints
@@ -62,4 +61,7 @@ urlpatterns = [
     path('password/change/', views.ChangePasswordView.as_view(), name='change-password'),
     path('password/set/', views.SetPasswordView.as_view(), name='set-password'),
     # endregion
+
+    path('skills/', views.SkillListView.as_view(), name='skill-list'),
+    path('jobs/', views.JobListView.as_view(), name='job-list'),
 ]
