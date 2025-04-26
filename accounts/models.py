@@ -94,7 +94,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         full_name = self.full_name()
-        return f"{full_name} ({self.phone})"
+        return f"شناسه: {self.id} - - - نام : {full_name}"
 
 
 class JobCategory(MPTTModel):
