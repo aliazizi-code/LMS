@@ -57,10 +57,13 @@ INSTALLED_APPS = [
     'mptt',
     'taggit',
     'django_filters',
+    'django_json_widget',
+    'simple_history',
 
     # First-party apps
     'accounts.apps.AccountsConfig',
     'courses.apps.CoursesConfig',
+    'comments.apps.CommentsConfig',
 ]
 
 MIDDLEWARE = [
@@ -214,7 +217,9 @@ SPECTACULAR_SETTINGS = {
 
 # OTP
 OTP = {
-    "EXPIRATION_TIME_SECONDS": 60,  # 1 minutes
+    "EXPIRATION_TIME_SECONDS": 5,
+    "LONG_TIME_SECONDS": 2 * 60 * 60,
+    "LONG_MAX_REQUESTS": 2,
 
     "VALID_WINDOW": 1,
     # VALID_WINDOW defines how many time steps are valid for OTP
@@ -238,4 +243,3 @@ if not TESTING:
         "debug_toolbar.middleware.DebugToolbarMiddleware",
         *MIDDLEWARE,
     ]
- 
