@@ -10,7 +10,8 @@ from deepdiff import DeepDiff
 from . import models
 from .forms import CourseRequestForm
 from .serializers import CourseDetailSerializer
-
+from django.contrib.contenttypes.models import ContentType
+from comments.models import Comment
 
 class FeatureInline(admin.TabularInline):
     model = models.Feature
@@ -86,7 +87,8 @@ class CourseAdmin(admin.ModelAdmin):
     readonly_fields = (
         'slug', 'created_at', 'updated_at', 'display_price',
         'count_students', 'count_lessons', 'thumbnail',
-        'duration', 'sv', 'last_lesson_update', 'published_at'
+        'duration', 'sv', 'last_lesson_update', 'published_at',
+        'count_comments'
     )
     list_filter = (
         'status', 'is_published', 'is_deleted', 'teacher',
@@ -120,7 +122,7 @@ class CourseAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('آمار', {
-            'fields': ('count_students', 'count_lessons'),
+            'fields': ('count_students', 'count_lessons', 'count_comments'),
             'classes': ('collapse',)
         }),
         ('اطلاعات اضافی', {
@@ -132,6 +134,8 @@ class CourseAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
+
+
 
     def display_price(self, obj):
         return f"{obj.price.final_price:,.0f}" if hasattr(obj, 'price') else "No Price"
@@ -417,6 +421,10 @@ class CourseRequestAdmin(SimpleHistoryAdmin):
             'classes': ['collapse', 'wide'],
         }),
     )
+    
+    def save_model(self, request, obj, form, change):
+        obj.admin = request.user
+        super().save_model(request, obj, form, change)
 
 
     class Media:

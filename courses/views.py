@@ -1,15 +1,18 @@
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.pagination import CursorPagination
 from rest_framework.exceptions import NotFound
 from django.db.models import Q, Prefetch, Count, F, Exists, OuterRef
 from django_filters.rest_framework import DjangoFilterBackend
+from django.contrib import messages
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
-from django.shortcuts import get_list_or_404, get_object_or_404
+from django.shortcuts import get_list_or_404, get_object_or_404, redirect
+from django.contrib.contenttypes.models import ContentType
 
+from comments.models import Comment
 from courses import serializers
 from courses.filters import CourseFilter
 from courses.permissions import IsTeacher
@@ -26,11 +29,15 @@ from courses.models import (
 )
 
 
-
-class CourseListPagination(PageNumberPagination):
+class CourseListPagination(CursorPagination):
     page_size = 16
     page_size_query_param = 'page_size'
     max_page_size = 100
+    
+    def get_ordering(self, request, queryset, view):
+        if queryset.query.order_by:
+            return queryset.query.order_by
+        return super().get_ordering(request, queryset, view)
 
 
 # region General View
