@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     # First-party apps
     'accounts.apps.AccountsConfig',
     'courses.apps.CoursesConfig',
+    'comments.apps.CommentsConfig',
 ]
 
 MIDDLEWARE = [
