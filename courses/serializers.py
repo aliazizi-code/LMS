@@ -1,11 +1,18 @@
-from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
-from taggit.serializers import TagListSerializerField, TaggitSerializer
-from utils import BaseNameRelatedField
 from django.core.exceptions import ValidationError
+from rest_framework import serializers
+from taggit.serializers import TagListSerializerField, TaggitSerializer
+
+from utils import BaseNameRelatedField
 from courses.models import (
-    Course,  Lesson, Season,  LearningLevel,
-    CourseCategory, Feature, FAQ, LessonMedia,
+    Course,
+    Lesson,
+    Season, 
+    LearningLevel,
+    CourseCategory,
+    Feature,
+    FAQ,
+    LessonMedia,
     CourseRequest,
 )
 

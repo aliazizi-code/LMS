@@ -10,10 +10,21 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.shortcuts import get_list_or_404, get_object_or_404
 
-from courses.models import Course, CourseCategory, RequestStatusChoices
-from courses.serializers import *
-from .filters import CourseFilter
-from .permissions import IsTeacher
+from courses import serializers
+from courses.filters import CourseFilter
+from courses.permissions import IsTeacher
+from courses.models import (
+    Course, 
+    CourseCategory, 
+    CourseRequest,
+    RequestStatusChoices, 
+    FAQ, 
+    Feature, 
+    Lesson, 
+    Season, 
+    LearningLevel,
+)
+
 
 
 class CourseListPagination(PageNumberPagination):
@@ -44,14 +55,14 @@ class UsersCourseListViewSet(viewsets.ModelViewSet):
         teacher_first_name=F('teacher__first_name'),
         teacher_last_name=F('teacher__last_name'),
     ).select_related('price')
-    serializer_class = CourseListSerializer
+    serializer_class = serializers.CourseListSerializer
     pagination_class = CourseListPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = CourseFilter
     
 
 class UserCourseDetailView(generics.RetrieveAPIView):
-    serializer_class = CourseDetailSerializer
+    serializer_class = serializers.CourseDetailSerializer
     lookup_field = 'slug'
     queryset = Course.objects.annotate(
         has_active_category=Exists(
@@ -117,7 +128,7 @@ class UserCourseDetailView(generics.RetrieveAPIView):
 
 # @method_decorator(cache_page(60 * 60), name='dispatch')
 class CategoryHierarchyListView(generics.ListAPIView):
-    serializer_class = CategoryHierarchySerializer
+    serializer_class = serializers.CategoryHierarchySerializer
     queryset = CourseCategory.objects.filter(
         parent=None, is_active=True
     ).prefetch_related(
@@ -130,7 +141,7 @@ class CategoryHierarchyListView(generics.ListAPIView):
 
 
 class LearningLevelView(generics.ListAPIView):
-    serializer_class = LearningLevelSerializer
+    serializer_class = serializers.LearningLevelSerializer
     queryset = LearningLevel.objects.filter(is_active=True)
 
 # endregion
@@ -139,7 +150,7 @@ class LearningLevelView(generics.ListAPIView):
 # region Teacher Views
 class TeacherCourseListViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsTeacher]
-    serializer_class = TeacherCourseListSerializer
+    serializer_class = serializers.TeacherCourseListSerializer
     pagination_class = CourseListPagination
     
     def get_queryset(self):
@@ -148,7 +159,7 @@ class TeacherCourseListViewSet(viewsets.ModelViewSet):
 
 class TeacherCourseDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated, IsTeacher]
-    serializer_class = TeacherCourseDetailSerializer
+    serializer_class = serializers.TeacherCourseDetailSerializer
     
     def get_queryset(self):
         return Course.objects.filter(is_deleted=False, teacher=self.request.user)
@@ -156,7 +167,7 @@ class TeacherCourseDetailView(generics.RetrieveAPIView):
 
 class TeacherSeasonView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsTeacher]
-    serializer_class = TeacherSeasonSerializer
+    serializer_class = serializers.TeacherSeasonSerializer
     
     def get_queryset(self):
         course_slug = self.request.query_params.get("course", None)
@@ -173,7 +184,7 @@ class TeacherSeasonView(generics.ListAPIView):
 
 class TeacherLessonView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsTeacher]
-    serializer_class = TeacherLessonSerializer
+    serializer_class = serializers.TeacherLessonSerializer
     
     def get_queryset(self):
         course_slug = self.request.query_params.get("course", None)
@@ -190,7 +201,7 @@ class TeacherLessonView(generics.ListAPIView):
 
 class TeacherFeatureView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsTeacher]
-    serializer_class = TeacherFeatureSerializer
+    serializer_class = serializers.TeacherFeatureSerializer
     
     def get_queryset(self):
         course_slug = self.request.query_params.get("course", None)
@@ -207,7 +218,7 @@ class TeacherFeatureView(generics.ListAPIView):
 
 class TeacherFAQView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsTeacher]
-    serializer_class = TeacherFAQSerializer
+    serializer_class = serializers.TeacherFAQSerializer
     
     def get_queryset(self):
         course_slug = self.request.query_params.get("course", None)
@@ -224,7 +235,7 @@ class TeacherFAQView(generics.ListAPIView):
 
 class TeacherUploadMediaViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsTeacher]
-    serializer_class = TeacherUploadMediaSerializer
+    serializer_class = serializers.TeacherUploadMediaSerializer
     
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request':request})
@@ -237,7 +248,7 @@ class TeacherUploadMediaViewSet(viewsets.ViewSet):
 
 class TeacherCourseRequestViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsTeacher]
-    serializer_class = TeacherCourseRequestSerializer
+    serializer_class = serializers.TeacherCourseRequestSerializer
     
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={'request':request})
