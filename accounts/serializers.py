@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models import User, EmployeeProfile, Skill, Job, UserProfile, SocialLink
-from utils import verify_otp_auth_num, verify_otp_change_phone, BaseNameRelatedField
+from utils import verify_otp_auth_num, verify_otp_change_phone, BaseNameRelatedField, verify_otp_reset_password
 
 
 # region Field
@@ -177,14 +177,30 @@ class ChangePasswordSerializer(BasePasswordSerializer):
         if attrs['old_password'] == attrs['password']:
             raise serializers.ValidationError({'password': 'رمز عبور جدید نباید مشابه رمز عبور فعلی باشد.'})
         return attrs
+    
 
-
-class ForgotPasswordSerializer(serializers.Serializer):
+class CheckPhoneSerializer(serializers.Serializer):
     phone = PhoneNumberField(max_length=13)
 
     def validate_phone(self, value):
-        get_object_or_404(User, phone=value)
+        if not User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError({'phone': 'شماره تلفن وارد شده در سیستم ثبت نشده است.'})
         return value
+    
+
+class ResetPasswordSerializer(BasePasswordSerializer):
+    phone = PhoneNumberField(max_length=13)
+    otp = serializers.IntegerField(required=True)
+
+    def validate(self, attrs):
+        phone = attrs.get('phone')
+        otp = attrs.get('otp')
+        user = get_object_or_404(User, phone=phone)
+
+        if not verify_otp_reset_password(phone, otp):
+            raise serializers.ValidationError({'otp': 'Invalid OTP provided. Please try again.'})
+        attrs['user'] = user
+        return attrs
 
 # endregion
 

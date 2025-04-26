@@ -62,10 +62,6 @@ class Migration(migrations.Migration):
                 ('count_students', models.PositiveSmallIntegerField(default=0, verbose_name='تعداد دانشجویان')),
                 ('count_lessons', models.PositiveSmallIntegerField(default=0, verbose_name='تعداد درس ها')),
                 ('duration', models.DurationField(default=datetime.timedelta(0), editable=False, verbose_name='مدت زمان دوره')),
-<<<<<<< HEAD
-                ('count_comments', models.PositiveSmallIntegerField(default=0, verbose_name='تعداد نظرات')),
-=======
->>>>>>> b686e611c41a8917f326e6ee0ed08a76e878a531
                 ('is_published', models.BooleanField(default=False, verbose_name='وضعیت انتشار')),
                 ('has_seasons', models.BooleanField(default=False, verbose_name='فصل بندی شده/نشده')),
                 ('is_deleted', models.BooleanField(default=False, verbose_name='وضعیت حذف')),
@@ -141,10 +137,7 @@ class Migration(migrations.Migration):
                 ('title', models.CharField(max_length=100, verbose_name='عنوان')),
                 ('description', models.TextField(validators=[django.core.validators.MaxLengthValidator(300)], verbose_name='توضیحات')),
                 ('order', models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='ترتیب دوره')),
-<<<<<<< HEAD
-=======
                 ('is_deleted', models.BooleanField(default=False, verbose_name='وضعیت حذف')),
->>>>>>> b686e611c41a8917f326e6ee0ed08a76e878a531
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ایجاد')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاریخ بروزرسانی')),
                 ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='features', to='courses.course', verbose_name='دوره')),
@@ -225,11 +218,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('title', models.CharField(max_length=100, verbose_name='عنوان فصل')),
-<<<<<<< HEAD
-                ('description', models.TextField(blank=True, null=True, verbose_name='توضیحات')),
-                ('is_published', models.BooleanField(default=False, verbose_name='وضعیت انتشار')),
-=======
->>>>>>> b686e611c41a8917f326e6ee0ed08a76e878a531
                 ('order', models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='ترتیب دوره')),
                 ('is_deleted', models.BooleanField(default=False, verbose_name='وضعیت حذف')),
                 ('duration', models.DurationField(default=datetime.timedelta(0), verbose_name='مدت زمان فصل')),
@@ -250,11 +238,7 @@ class Migration(migrations.Migration):
                 ('title', models.CharField(max_length=100, verbose_name='عنوان درس')),
                 ('url_video', models.URLField(unique=True, verbose_name='آدرس ویدیو')),
                 ('order', models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='ترتیب دوره')),
-<<<<<<< HEAD
-                ('url_files', models.URLField(blank=True, null=True, unique=True, verbose_name='آدرس فایل ها')),
-=======
                 ('url_attachment', models.URLField(blank=True, null=True, unique=True, verbose_name='آدرس فایل ها')),
->>>>>>> b686e611c41a8917f326e6ee0ed08a76e878a531
                 ('is_published', models.BooleanField(default=False, verbose_name='وضعیت انتشار')),
                 ('is_deleted', models.BooleanField(default=False, verbose_name='وضعیت حذف')),
                 ('duration', models.DurationField(default=datetime.timedelta(0), verbose_name='مدت زمان فصل')),
@@ -267,11 +251,7 @@ class Migration(migrations.Migration):
             options={
                 'verbose_name': 'درس',
                 'verbose_name_plural': 'درس ها',
-<<<<<<< HEAD
-                'ordering': ['order', 'created_at', 'id'],
-=======
                 'ordering': ['order', 'published_at', 'id'],
->>>>>>> b686e611c41a8917f326e6ee0ed08a76e878a531
             },
         ),
         migrations.AddIndex(
