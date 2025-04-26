@@ -8,10 +8,36 @@ from imagekit.processors import ResizeToFill
 from django.conf import settings
 from utils import get_upload_to, validate_image_size, AutoSlugField
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
+from django.contrib.postgres.search import SearchVectorField
 
 
-def get_upload_image(instance, filename):
-    return get_upload_to(instance, filename, prefix='Article/image')
+def get_upload_banner(instance, filename):
+    model_name = 'Article'
+    object_name = f"{instance.slug}-{instance.id}"
+    folder_type = 'banner'
+    return get_upload_to(instance, filename, model_name, object_name, folder_type)
+
+
+def get_upload_images(instance, filename):
+    model_name = 'Article'
+    object_name = f"{instance.article.slug}-{instance.article.id}"
+    folder_type = 'images'
+    return get_upload_to(instance, filename, model_name, object_name, folder_type)
+
+
+class RequestStatusChoices(models.TextChoices):
+    PENDING = 'pending', _('در حال بررسی')
+    APPROVED = 'approved', _('تایید شده')
+    REJECTED = 'rejected', _('رد شده')
+    NEED_REVISION = 'need_revision', _('نیاز به اصلاح')
+    DRAFT = 'draft', _('پیش نویس')
+
+
+class RequestActionChoices(models.TextChoices):
+        ADD = 'add', _('انتشار')
+        UPDATE = 'update', _('ویرایش')
+        DELETE = 'delete', _('حذف')
 
 
 class ArticleCategory(MPTTModel):
@@ -36,48 +62,28 @@ class ArticleCategory(MPTTModel):
     
 
 class Article(models.Model):
-    class STATUS(models.TextChoices):
-        IN_REVIEW = '-در-حال-بررسی', _('در-حال-بررسی')
-        PUBLISHED = 'منتشر-شده-است', _('منتشر-شده-است')
-        NEEDS_CORRECTION = 'نیاز-به-اصلاح دارد', _('نیاز-به-اصلاح دارد')
-        NOT_CONFIRMED = 'تایید-نشد', _('تایید-نشد')
-
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='articles')
     title = models.CharField(max_length=250)
     slug = AutoSlugField(source_field='title')
-    image = models.ImageField(
-        upload_to=get_upload_image,
+    sv = SearchVectorField(blank=True, null=True, editable=False)
+    banner = models.ImageField(
+        upload_to=get_upload_banner,
         validators=[validate_image_size],
 
     )
-    # image_thumbnail need to fix
-    image_thumbnail = ImageSpecField(
-        source='image',
+    banner_thumbnail = ImageSpecField(
+        source='banner',
         processors=[ResizeToFill(120, 120)],
         format='JPEG',
         options={'quality': 80}
     ) 
     category = models.ManyToManyField(ArticleCategory, related_name="articles", db_table='article_category_link')
-    content = models.TextField()
-    has_sections = models.BooleanField(default=False)
-    tags = TaggableManager()
-    status = models.CharField(
-        max_length=30,
-        choices=STATUS.choices,
-        default=STATUS.IN_REVIEW,
-    )
+    content = models.models.JSONField()
+    is_published = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateField(null=True, blank=True)
-
-    def save(self, *args, **kwargs):
-        if self.status == self.STATUS.PUBLISHED and self.pk:
-            original = Article.objects.get(pk=self.pk)
-            if original.status != self.STATUS.PUBLISHED:
-                self.published_at = timezone.now()
-        elif self.status == self.STATUS.PUBLISHED and not self.pk:
-            self.published_at = timezone.now()
-        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = _('Article')
@@ -89,17 +95,33 @@ class Article(models.Model):
         return self.title
 
 
-class Section(models.Model):
-    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='sections')
-    title = models.CharField(max_length=250)
-    content = models.TextField()
-    order = models.PositiveIntegerField()
+class ArticleRequest(models.Model):
+    status = models.CharField(
+        max_length=20, choices=RequestStatusChoices.choices,
+        default=RequestStatusChoices.DRAFT,
+    )
+    data = models.JSONField()
+    history = HistoricalRecords()
+    comments = models.TextField(null=True, blank=True)
+    admin_response = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False)
+    need_revision = models.BooleanField(default=False)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='article_requests'
+    )
+    admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        editable=False,
+        related_name='admin_article_requests'
+    )
 
-    class Meta:
-        verbose_name = _('Section')
-        verbose_name_plural = _('Sections')
-        ordering = ['order']
-        db_table = 'section'
 
-    def __str__(self):
-        return self.title
+class ArticleImage(models.Model):
+    image = models.ImageField(upload_to=get_upload_banner, validators=[validate_image_size])
+    alt_text = models.CharField(max_length=255)
