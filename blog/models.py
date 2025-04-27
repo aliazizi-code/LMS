@@ -67,6 +67,9 @@ class ArticleCategory(MPTTModel):
         verbose_name_plural = _('Article Categories')
         ordering = ['name']
         db_table = 'article_category'
+        indexes = [
+            models.Index(fields=['slug'])
+        ]
 
 
 class Article(models.Model):
