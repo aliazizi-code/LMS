@@ -1,5 +1,6 @@
 from django.core.cache import cache
 from django.core.exceptions import SuspiciousOperation
+import redis
 
 class CacheManager:
     @staticmethod

@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import Group
 from .forms import UserCreationForm, UserChangeForm
 from . import models
+from mptt.admin import DraggableMPTTAdmin
 
 
 class UserAdmin(BaseUserAdmin):
@@ -35,25 +36,15 @@ class UserAdmin(BaseUserAdmin):
         return form
 
 
-class JobCategoryAdmin(admin.ModelAdmin):
-    list_display = ('title', 'parent', 'is_active')
+class JobCategoryAdmin(DraggableMPTTAdmin):
+    list_display = ("tree_actions",'indented_title', 'is_active')
+    autocomplete_fields = ('parent',)
     list_filter = ('is_active', 'parent')
+    readonly_fields = ('created_at', 'updated_at')
     search_fields = ('title',)
-    ordering = ('title',)
 
     fieldsets = (
-        (None, {'fields': ('title', 'parent', 'is_active')}),
-    )
-
-
-class JobAdmin(admin.ModelAdmin):
-    list_display = ('title',)
-    search_fields = ('title',)
-    filter_horizontal = ('category',)  # For ManyToMany field
-    ordering = ('title',)
-
-    fieldsets = (
-        (None, {'fields': ('title', 'category')}),
+        (None, {'fields': ('title', 'parent', 'is_active', 'created_at', 'updated_at')}),
     )
 
 
@@ -70,10 +61,10 @@ class UserProfileAdmin(admin.ModelAdmin):
         'fields': ('user', 'bio')
     }),
     ('اطلاعات شغلی', {
-        'fields': ('job', 'age', 'gender')
+        'fields': ('job', 'age', 'gender', 'skills')
     }),
     ('عکس پروفایل', {
-        'fields': ('avatar', 'thumbnail')
+        'fields': ('avatar', 'thumbnail',)
     }),
 )
     
@@ -98,24 +89,19 @@ class GroupAdmin(admin.ModelAdmin):
     filter_horizontal = ('permissions',)
 
 
-class PositionInline(admin.StackedInline):
-    model = models.Position
-    can_delete = False
-
-
 class EmployeeProfileAdmin(admin.ModelAdmin):
-    inlines = (PositionInline,)
     list_display = ('username',)
     search_fields = ('username',)
 
 
 admin.site.register(models.User, UserAdmin)
 admin.site.register(models.JobCategory, JobCategoryAdmin)
-admin.site.register(models.Job, JobAdmin)
+admin.site.register(models.Job)
+admin.site.register(models.Skill)
 admin.site.register(models.UserProfile, UserProfileAdmin)
 admin.site.register(models.EmployeeProfile, EmployeeProfileAdmin)
-
 admin.site.register(models.SocialLink)
+
 
 admin.site.unregister(Group)
 admin.site.register(Group, GroupAdmin)

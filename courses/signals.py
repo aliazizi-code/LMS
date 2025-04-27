@@ -1,21 +1,16 @@
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_delete
+from django.db.models import F
 from django.contrib.postgres.search import SearchVector
 from django.dispatch import receiver
-from courses.models import CourseCategory, Course, Price, Lesson
+from django.utils import timezone
+from courses.models import CourseCategory, Course, Price, Lesson, Season
 
-from utils import get_discounted_price
+from utils import get_discounted_price, update_descendants_active_status
 
 
 @receiver(post_save, sender=CourseCategory)
-def update_active_status_of_descendants(sender, instance, **kwargs):
-    descendants = instance.get_descendants(include_self=True)
-    descendants.update(is_active=instance.is_active)
-
-
-@receiver(post_save, sender=Course)
-def create_price_for_course(sender, instance, created, **kwargs):
-    if created:
-        Price.objects.create(course=instance, main_price=0, final_price=0)
+def update_course_category_status(sender, instance, **kwargs):
+    update_descendants_active_status(instance)
 
 
 @receiver(post_save, sender=Course)
@@ -23,7 +18,7 @@ def update_search_vector(sender, instance, **kwargs):
     Course.objects.filter(
         id=instance.id
     ).update(
-        sv=SearchVector('title', 'short_description')
+        sv=SearchVector('title')
     )
 
 
@@ -42,7 +37,15 @@ def update_urls_video_and_file_on_delete(sender, instance, **kwargs):
         original_lesson = Lesson.objects.get(pk=instance.pk)
         if original_lesson.is_deleted != instance.is_deleted and instance.is_deleted:
             instance.video = f"{instance.url_video}-del"
-            instance.file = f"{instance.url_files}-del"
+            instance.file = f"{instance.url_attachment}-del"
+
+
+@receiver(pre_save, sender=Season)
+def update_urls_video_and_file_on_delete(sender, instance, **kwargs):
+    if instance.pk:
+        original_season = Season.objects.get(pk=instance.pk)
+        if original_season.is_deleted != instance.is_deleted and instance.is_deleted:
+            instance.title = f"{instance.title} del"
 
 
 @receiver(pre_save, sender=Price)
@@ -56,3 +59,39 @@ def set_final_price(sender, instance, **kwargs):
     
     # TODO: Use Celery for handling time-limited discounts in the future
 
+
+@receiver(post_save, sender=Lesson)
+def increase_count_lesson(sender, instance, created, **kwargs):
+    if created:
+        Course.objects.filter(pk=instance.course.pk).update(
+            count_lessons=F('count_lessons') + 1 
+        )
+
+
+@receiver(post_delete, sender=Lesson)
+def decrease_count_lesson(sender, instance, **kwargs):
+    Course.objects.filter(pk=instance.course.pk).update(
+            count_lessons=F('count_lessons') - 1 
+        )
+
+
+@receiver(pre_save, sender=Course)
+@receiver(pre_save, sender=Lesson)
+def set_published_at(sender, instance, **kwargs):
+    if not instance.pk or not hasattr(instance, 'is_published'):
+        return
+    
+    old = sender.objects.filter(pk=instance.pk).only(
+        'is_published', 'published_at'
+    ).first()
+    
+    if (
+        old
+        and not old.is_published
+        and instance.is_published
+        and not old.published_at
+    ):
+        instance.published_at = timezone.now()
+
+
+            

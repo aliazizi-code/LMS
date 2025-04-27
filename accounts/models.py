@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.models import Q
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, Group
 from django.utils.translation.trans_null import gettext_lazy as _
 from django.core.exceptions import ValidationError
@@ -17,8 +16,11 @@ from utils import (
 )
 
 
-def avatar_get_upload_to(instance, filename):
-    return get_upload_to(instance.pk, filename, "users/avatar")
+def get_upload_avatar(instance, filename):
+    model_name = 'User'
+    object_name = f"{instance.id}"
+    folder_type = 'avatar'
+    return get_upload_to(instance, filename, model_name, object_name, folder_type)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -80,15 +82,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = _('کاربران')
         ordering = ['created_at']
         db_table = 'custom_user'
+        indexes = [
+            models.Index(fields=['phone']),
+            models.Index(fields=['email_verify_token']),
+        ]
 
     def full_name(self):
         if self.first_name and self.last_name:
             return f"{self.first_name.capitalize()} {self.last_name.capitalize()}"
-        return "ناشناس"
+        return None
 
     def __str__(self):
         full_name = self.full_name()
-        return f"{full_name.strip()} ({self.phone or self.email})".strip()
+        return f"شناسه: {self.id} - - - نام : {full_name}"
 
 
 class JobCategory(MPTTModel):
@@ -101,6 +107,14 @@ class JobCategory(MPTTModel):
         verbose_name=_('والد')
     )
     is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ایجاد')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
 
     def __str__(self):
         return self.title
@@ -118,16 +132,51 @@ class JobCategory(MPTTModel):
 
 
 class Job(models.Model):
-    title = models.CharField(max_length=200, verbose_name=_('عنوان'))
-    category = models.ManyToManyField(JobCategory, related_name='jobs', verbose_name=_('دسته بندی'))
+    name = models.CharField(max_length=200, verbose_name=_('عنوان'))
+    is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
+    category = models.ManyToManyField(
+        JobCategory,
+        related_name='jobs',
+        blank=True,
+        verbose_name=_('دسته بندی')
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ایجاد')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
 
     def __str__(self):
-        return self.title
+        return self.name
 
     class Meta:
         verbose_name = _('شغل')
         verbose_name_plural = _('شغل ها')
-        ordering = ['title']
+        ordering = ['name']
+
+
+class Skill(models.Model):
+    name = models.CharField(max_length=100, unique=True, verbose_name=_('نام مهارت'))
+    is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ایجاد')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = _('مهارت')
+        verbose_name_plural = _('مهارت ها')
+        ordering = ['-id']
 
 
 class UserProfile(models.Model):
@@ -141,24 +190,17 @@ class UserProfile(models.Model):
         related_name='user_profile',
         verbose_name=_('کاربر')
     )
-    bio = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name=_('بیوگرافی')
-    )
     job = models.ForeignKey(
         Job,
         on_delete=models.CASCADE,
         related_name='user_profile',
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=_('شغل')
     )
     avatar = models.ImageField(
-        upload_to=avatar_get_upload_to,
+        upload_to=get_upload_avatar,
         validators=[validate_image_size],
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=_('عکس پروفایل')
     )
     avatar_thumbnail = ImageSpecField(
@@ -166,40 +208,49 @@ class UserProfile(models.Model):
         format='JPEG',
         options={'quality': 80}
     )
-    age = models.PositiveSmallIntegerField(
+    bio = models.TextField(
+        blank=True, null=True,
+        verbose_name=_('بیوگرافی')
+    )
+    skills = models.ManyToManyField(
+        Skill,
+        related_name='user_profile',
         blank=True,
-        null=True,
+        verbose_name=_('مهارت ها'),
+        help_text=_('مهارت‌های تخصصی کاربر'),
+    )
+    age = models.PositiveSmallIntegerField(
+        blank=True, null=True,
         verbose_name=_('سن')
     )
     gender = models.CharField(
         max_length=1,
         choices=Gender.choices,
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=_('جنسیت')
     )
-
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاریخ ثبت نام')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاریخ ویرایش')
+    )
+    
     class Meta:
         verbose_name = _('پروفایل کاربر')
         verbose_name_plural = _('پروفایل کاربران')
         ordering = ['-id']
         db_table = 'user_profile'
-        indexes = [
-            models.Index(fields=['age', 'gender', 'job']),
-            models.Index(fields=['bio'], condition=Q(bio__isnull=False) & ~Q(bio=''), name='non_empty_bio_idx'),
-        ]
-
+    
     def __str__(self):
         return str(self.user)
 
 
 class EmployeeProfileManager(models.Manager):
     def filter_completed_profiles(self):
-        return self.get_queryset().select_related(
-            'user_profile',
-            'user_profile__user',
-            'user_profile__job'
-        ).filter(
+        return self.get_queryset().filter(
             username__isnull=False,
             user_profile__user__first_name__isnull=False,
             user_profile__user__last_name__isnull=False,
@@ -209,14 +260,6 @@ class EmployeeProfileManager(models.Manager):
             user_profile__bio__isnull=False,
         ).exclude(
             user_profile__bio=''
-        ).only(
-            'id', 'username', 'created_at',
-            'user_profile__age',
-            'user_profile__gender',
-            'user_profile__bio',
-            'user_profile__user__first_name',
-            'user_profile__user__last_name',
-            'user_profile__job__title'
         )
 
 
@@ -233,14 +276,14 @@ class EmployeeProfile(models.Model):
         verbose_name=_('نام کاربری'),
         validators=[
             RegexValidator(
-                regex=r'^[a-z0-9]{3,150}$',
+                regex=r'^[a-z0-9\-_]{3,150}$',
                 message=_('نام کاربری باید فقط شامل حروف کوچک انگلیسی و اعداد باشد و نباید فاصله یا علامت خاصی داشته باشد.')
             )
         ],
     )
-    skills = TaggableManager(
+    roles = TaggableManager(
         blank=True,
-        verbose_name=_('مهارت ها'),
+        verbose_name=_("نقش های کارمند")
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -264,24 +307,10 @@ class EmployeeProfile(models.Model):
             ("can_employee", "Can employee"),
             # ("can_author", "Can author"),
         )
-
-
-class Position(models.Model):
-    employee_profile = models.OneToOneField(
-        EmployeeProfile,
-        on_delete=models.CASCADE,
-        verbose_name=_('پروفایل کارمند'),
-        related_name='position'
-    )
-    roles = TaggableManager(
-        blank=True,
-        verbose_name=_("نقش های کارمند")
-    )
-    
-    class Meta:
-        verbose_name = _('موقعیت شغلی')
-        verbose_name_plural = _('موقعیت‌های شغلی')
-        
+        indexes = [
+            models.Index(fields=['username']),
+            
+        ]
 
 
 class SocialLink(models.Model):
@@ -290,9 +319,9 @@ class SocialLink(models.Model):
         instagram = 'instagram', _('اینستاگرام')
         linkedin = 'linkedin', _('لینکدین')
         x = 'x', _('ایکس')
-        threads = 'threads', _('تردز')
-        facebook = 'facebook', _('فیسبوک')
-        youtube = 'youtube', _('یوتیوب')
+        # threads = 'threads', _('تردز')
+        # facebook = 'facebook', _('فیسبوک')
+        # youtube = 'youtube', _('یوتیوب')
         github = 'github', _('گیت‌هاب')
         gitlab = 'gitlab', _('گیت‌لب')
     
@@ -311,14 +340,6 @@ class SocialLink(models.Model):
         related_name='social_link',
         verbose_name=_('پروفایل کارمند'),
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_('تاریخ ثبت نام')
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        verbose_name=_('تاریخ ویرایش')
-    )
     
     def __str__(self):
         return f"{self.employee_profile.username} - {self.social_media_type}"
@@ -334,12 +355,20 @@ class SocialLink(models.Model):
             self.SocialMediaType.instagram: "https://www.instagram.com/",
             self.SocialMediaType.linkedin: "https://www.linkedin.com/",
             self.SocialMediaType.x: "https://x.com/",
-            self.SocialMediaType.threads: "https://www.threads.net/",
-            self.SocialMediaType.facebook: "https://www.facebook.com/",
-            self.SocialMediaType.youtube: "https://www.youtube.com/",
+            # self.SocialMediaType.threads: "https://www.threads.net/",
+            # self.SocialMediaType.facebook: "https://www.facebook.com/",
+            # self.SocialMediaType.youtube: "https://www.youtube.com/",
             self.SocialMediaType.github: "https://github.com/",
             self.SocialMediaType.gitlab: "https://gitlab.com/",
         }
+        
+        if SocialLink.objects.filter(
+            employee_profile=self.employee_profile,
+            social_media_type=self.social_media_type
+        ).exclude(pk=self.pk if self.pk else None).exists():
+            raise ValidationError(
+                f'رکوردی با نوع {self.SocialMediaType(self.social_media_type).label} از قبل وجود دارد.'
+            )
 
         if self.social_media_type in patterns and not self.link.startswith(patterns[self.social_media_type]):
             raise ValidationError(_(f'لینک {self.SocialMediaType(self.social_media_type).label} باید با "{patterns[self.social_media_type]}" شروع شود.'))
