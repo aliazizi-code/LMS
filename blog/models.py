@@ -137,7 +137,12 @@ class ArticleRequest(models.Model):
         related_name='admin_article_requests'
     )
 
+    def __str__(self):
+        return f"ArticleRequest(id={self.pk}, action={self.action}, status={self.status})"
+
 
 class ArticleImage(models.Model):
     image = models.ImageField(upload_to=get_upload_banner, validators=[validate_image_size])
     alt_text = models.CharField(max_length=255)
+
+
