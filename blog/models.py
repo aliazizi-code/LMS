@@ -60,7 +60,7 @@ class ArticleCategory(MPTTModel):
     def __str__(self):
         return self.name
     
-
+    
 class Article(models.Model):
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='articles')
     title = models.CharField(max_length=250)
@@ -96,6 +96,8 @@ class Article(models.Model):
 
 
 class ArticleRequest(models.Model):
+    target_id = models.PositiveIntegerField(null=True, blank=True)
+    action = models.CharField(max_length=20, choices=RequestActionChoices.choices)
     status = models.CharField(
         max_length=20, choices=RequestStatusChoices.choices,
         default=RequestStatusChoices.DRAFT,
