@@ -104,6 +104,9 @@ class Article(models.Model):
         verbose_name_plural = _('Articles')
         ordering = ['-created_at']
         db_table = 'article'
+        indexes = [
+            models.Index(fields=['slug'])
+        ]
 
 
 class ArticleRequest(models.Model):
