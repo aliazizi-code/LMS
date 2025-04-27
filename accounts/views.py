@@ -24,10 +24,10 @@ from accounts.models import UserProfile, EmployeeProfile, SocialLink, User
 from accounts.docs.schema import *
 from accounts.serializers import *
 from accounts.throttles import DualThrottle
-from accounts.permissions import IsEmployeeForProfile
+from accounts.permissions import IsEmployeeForProfile, IsAnonymous
 from accounts.jwt import set_token_cookies, delete_token_cookies
 from accounts.tasks import send_otp_to_phone_tasks
-from utils import generate_otp_change_phone, generate_otp_auth_num
+from utils import generate_otp_change_phone, generate_otp_auth_num, generate_otp_reset_password
 
 
 
@@ -276,19 +276,56 @@ class ChangePasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ForgotPasswordView(APIView):
-    serializer_class = ForgotPasswordSerializer
-    # permission_classes = [IsAnonymousUser]
+class CheckPhoneView(APIView):
+    permission_classes = [IsAnonymous]
+    serializer_class = CheckPhoneSerializer
 
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+    def get(self, request): 
+        serializer = self.serializer_class(data=request.query_params)
+
+        if not serializer.is_valid():
+            return Response(
+                {"error": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return Response({
+            "phone": serializer.validated_data['phone'] 
+        }, status=status.HTTP_200_OK)
+    
+
+class ResetPasswordView(APIView):
+
+    def get(self, request):
+        serializer = CheckPhoneSerializer(data=request.query_params)
+
         if serializer.is_valid():
             data = serializer.validated_data
+            phone = data['phone']
+            otp = generate_otp_reset_password(phone)
+            send_otp_to_phone_tasks.delay(otp)
+
+            if settings.DEBUG:
+                data['otp'] = otp
+            
             return Response(
-                data={'phone': data['phone'],
-                      'has_user': True},
+                data=data,
                 status=status.HTTP_200_OK
             )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+
+        if serializer.is_valid():
+            data = serializer.validated_data
+            user = data['user']
+            password = data['password']
+            user.set_password(password)
+            user.save()
+
+            return Response({}, status=status.HTTP_200_OK)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # endregion

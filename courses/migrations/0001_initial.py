@@ -114,6 +114,23 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='FAQ',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('question', models.CharField(max_length=255, verbose_name='سوال')),
+                ('answer', models.TextField(verbose_name='پاسخ')),
+                ('order', models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='ترتیب دوره')),
+                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاریخ ایجاد')),
+                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاریخ بروزرسانی')),
+                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='faqs', to='courses.course', verbose_name='دوره')),
+            ],
+            options={
+                'verbose_name': 'سوال متداول',
+                'verbose_name_plural': 'سوالات متداول',
+                'ordering': ['order', 'created_at', 'id'],
+            },
+        ),
+        migrations.CreateModel(
             name='Feature',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
