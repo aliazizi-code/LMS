@@ -10,6 +10,7 @@ from utils import get_upload_to, validate_image_size, AutoSlugField
 from django.utils import timezone
 from simple_history.models import HistoricalRecords
 from django.contrib.postgres.search import SearchVectorField
+from django.core.exceptions import ValidationError
 
 
 def get_upload_banner(instance, filename):
@@ -48,19 +49,26 @@ class ArticleCategory(MPTTModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return self.name
+                            
+    def clean(self):
+        if self.parent:
+            level = self.parent.get_level() + 1
+            if level > 2:
+                raise ValidationError(_('حداکثر تعداد سطوح دسته بندی ۲ سطح می‌باشد.'))
+            
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+                        
     class Meta:
         verbose_name = _('Article Category')
         verbose_name_plural = _('Article Categories')
         ordering = ['name']
         db_table = 'article_category'
 
-    class MPTTMeta:
-        order_insertion_by = ['name']
-    
-    def __str__(self):
-        return self.name
-    
-    
+
 class Article(models.Model):
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='articles')
     title = models.CharField(max_length=250)
@@ -85,14 +93,14 @@ class Article(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateField(null=True, blank=True)
 
+    def __str__(self):
+        return self.title
+
     class Meta:
         verbose_name = _('Article')
         verbose_name_plural = _('Articles')
         ordering = ['-created_at']
         db_table = 'article'
-
-    def __str__(self):
-        return self.title
 
 
 class ArticleRequest(models.Model):
