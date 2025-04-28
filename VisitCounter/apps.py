@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class VisitcounterConfig(AppConfig):
+class VisitCounterConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'VisitCounter'
+    name = 'visit_counter'
