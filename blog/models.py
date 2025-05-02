@@ -139,6 +139,11 @@ class ArticleRequest(models.Model):
 
     def __str__(self):
         return f"ArticleRequest(id={self.pk}, action={self.action}, status={self.status})"
+    
+    def clean(self):
+        if self.status == RequestStatusChoices.PUBLISH:
+            if self.article.is_published:
+                raise ValidationError(_('این مقاله قبلاً منتشر شده است. برای مقالات منتشر شده فقط امکان ثبت درخواست بروزرسانی یا حذف وجود دارد.'))
 
 
 class ArticleImage(models.Model):
