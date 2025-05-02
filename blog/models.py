@@ -36,7 +36,7 @@ class RequestStatusChoices(models.TextChoices):
 
 
 class RequestActionChoices(models.TextChoices):
-        ADD = 'add', _('انتشار')
+        PUBLISH = 'publish', _('انتشار')
         UPDATE = 'update', _('ویرایش')
         DELETE = 'delete', _('حذف')
 
