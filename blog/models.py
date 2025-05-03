@@ -174,6 +174,11 @@ class ArticleRequest(models.Model):
 
     def __str__(self):
         return f"ArticleRequest(id={self.pk}, action={self.action}, status={self.status})"
+    
+    class Meta:
+        verbose_name = _("درخواست")
+        verbose_name_plural = _("درخواست ها")
+        ordering = ['-created_at', '-id']
 
 
 class ArticleImage(models.Model):
