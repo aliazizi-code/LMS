@@ -186,4 +186,7 @@ class ArticleImage(models.Model):
     image = models.ImageField(upload_to=get_upload_banner, validators=[validate_image_size])
     alt_text = models.CharField(max_length=255)
 
+    def __str__(self):
+        return f"Image for {self.article}"
+
 
