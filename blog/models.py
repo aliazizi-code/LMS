@@ -182,6 +182,7 @@ class ArticleRequest(models.Model):
 
 
 class ArticleImage(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to=get_upload_banner, validators=[validate_image_size])
     alt_text = models.CharField(max_length=255)
 
