@@ -188,5 +188,9 @@ class ArticleImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.article}"
+    
+    class Meta:
+        verbose_name = _('Article Image')
+        verbose_name_plural = _("Article Images")
 
 
