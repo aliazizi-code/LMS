@@ -90,11 +90,9 @@ class Article(models.Model):
     ) 
     category = models.ManyToManyField(ArticleCategory, related_name="articles", db_table='article_category_link')
     content = models.models.JSONField()
-    is_published = models.BooleanField(default=False)
-    is_deleted = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    published_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    published_at = models.DateField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False)
 
     def __str__(self):
         return self.title
@@ -172,7 +170,7 @@ class ArticleRequest(models.Model):
             self.need_revision = True
         
         super().save(*args, **kwargs)
-        
+
     def __str__(self):
         return f"ArticleRequest(id={self.pk}, action={self.action}, status={self.status})"
 
