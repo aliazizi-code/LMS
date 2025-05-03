@@ -48,10 +48,7 @@ class ArticleCategory(MPTTModel):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.name
-                            
+                 
     def clean(self):
         if self.parent:
             level = self.parent.get_level() + 1
@@ -62,6 +59,9 @@ class ArticleCategory(MPTTModel):
         self.clean()
         super().save(*args, **kwargs)
                         
+    def __str__(self):
+        return self.name
+           
     class Meta:
         verbose_name = _('Article Category')
         verbose_name_plural = _('Article Categories')
@@ -136,15 +136,37 @@ class ArticleRequest(models.Model):
         editable=False,
         related_name='admin_article_requests'
     )
-
-    def __str__(self):
-        return f"ArticleRequest(id={self.pk}, action={self.action}, status={self.status})"
     
     def clean(self):
-        if self.status == RequestStatusChoices.PUBLISH:
-            if self.article.is_published:
-                raise ValidationError(_('این مقاله قبلاً منتشر شده است. برای مقالات منتشر شده فقط امکان ثبت درخواست بروزرسانی یا حذف وجود دارد.'))
+        super().clean()
+        errors = {}
 
+        if self.article:
+            if self.action == RequestActionChoices.PUBLISH:
+                error_msg = _('این مقاله قبلاً منتشر شده است. برای مقالات منتشر شده فقط امکان ثبت درخواست بروزرسانی یا حذف وجود دارد.')
+                errors['action'] = error_msg
+        
+            if self.author != self.article.author:
+                error_msg = _("فقط نویسنده مقاله مجاز به ثبت درخواست برای آن است.")
+                errors['author'] = error_msg
+
+            if self.action == RequestActionChoices.DELETE and (not self.comments or self.comments == ''):
+                error_msg = _("برای درخواست حذف باید توضیحات درج شود.")
+                errors['action'] = error_msg
+        else:
+            if self.action in [RequestActionChoices.UPDATE, RequestActionChoices.DELETE]:
+                error_msg = _('برای ثبت درخواست ویرایش یا حذف، مقاله باید ابتدا منتشر شده باشد.')
+                errors['action'] = error_msg
+            
+        if self.status == RequestStatusChoices.NEED_REVISION and (not self.admin_response or self.admin_response == ''):
+            error_msg = _("در وضعیت نیاز به اصلاح باید پاسخی به نویسنده داده شود.")
+            errors['admin_response'] = error_msg
+        
+        if errors:
+            raise ValidationError(errors)
+        
+    def __str__(self):
+        return f"ArticleRequest(id={self.pk}, action={self.action}, status={self.status})"
 
 class ArticleImage(models.Model):
     image = models.ImageField(upload_to=get_upload_banner, validators=[validate_image_size])
