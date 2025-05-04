@@ -88,7 +88,7 @@ class CourseAdmin(admin.ModelAdmin):
         'slug', 'created_at', 'updated_at', 'display_price',
         'count_students', 'count_lessons', 'thumbnail',
         'duration', 'sv', 'last_lesson_update', 'published_at',
-        'count_comments'
+        'count_comments', 'count_views', 'count_unique_views',
     )
     list_filter = (
         'status', 'is_published', 'is_deleted', 'teacher',
@@ -122,7 +122,10 @@ class CourseAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('آمار', {
-            'fields': ('count_students', 'count_lessons', 'count_comments'),
+            'fields': (
+                'count_students', 'count_lessons', 'count_comments',
+                'count_views', 'count_unique_views'
+            ),
             'classes': ('collapse',)
         }),
         ('اطلاعات اضافی', {
