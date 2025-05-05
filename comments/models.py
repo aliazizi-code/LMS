@@ -39,6 +39,7 @@ class Comment(MPTTModel):
     )
     history = HistoricalRecords(excluded_fields=['lft', 'rght', 'tree_id', 'level'])
     is_approved = models.BooleanField(default=False, verbose_name=_("تایید شده"))
+    is_deleted = models.BooleanField(default=False, verbose_name=_('وضعیت حذف'))
     approved_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاریخ تایید"))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاریخ ایجاد"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاریخ بروزرسانی"))

@@ -46,7 +46,17 @@ class CommentSerializer(serializers.ModelSerializer):
             raise NotAuthenticated((_("اطلاعات برای اعتبارسنجی ارسال نشده است.")))
         
         content_type = get_object_or_404(ContentType, model=content_type)
+        model_class = content_type.model_class()
         
+        object_slug = validated_data.get('object_slug')
+        parent_object = model_class.objects.filter(
+            slug=object_slug,
+            is_published=True,
+            is_deleted=False
+        ).first()
+
+        if not parent_object:
+            raise serializers.ValidationError(_("آیتم یافت نشد."))
         
         comment = Comment(
             **validated_data,

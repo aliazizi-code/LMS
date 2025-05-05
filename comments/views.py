@@ -1,4 +1,4 @@
-from rest_framework import generics, status, viewsets, mixins
+from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.pagination import CursorPagination
 from django.core.exceptions import ValidationError
@@ -28,7 +28,7 @@ class CommentViewSet(viewsets.ModelViewSet):
     
     @cached_property
     def content_type(self):
-        model_type = self.request.query_params.get('type')
+        model_type = self.kwargs.get('type')
         if not model_type:
             raise ValidationError(_("پارامترها الزامی هستند."))
         try:
@@ -37,14 +37,27 @@ class CommentViewSet(viewsets.ModelViewSet):
             raise ValidationError(_("مدل یافت نشد."))
     
     def get_queryset(self):
-        object_slug = str(self.request.query_params.get('slug'))
+        object_slug = self.kwargs.get('slug')
+        
         if not object_slug:
             raise ValidationError(_("پارامترها الزامی هستند."))
+        
+        model_class = self.content_type.model_class()
+        
+        parent_object = model_class.objects.filter(
+            slug=object_slug,
+            is_published=True,
+            is_deleted=False,
+        ).exists()
+
+        if not parent_object:
+            raise ValidationError(_("این آیتم حذف شده یا منتشر نشده است.")) 
         
         base_queryset = Comment.objects.filter(
             content_type=self.content_type,
             object_slug=object_slug,
             is_approved=True,
+            is_deleted=False,
         ).select_related('user__user_profile')
         
         top_queryset = base_queryset.filter(parent=None)
@@ -88,3 +101,24 @@ class CommentViewSet(viewsets.ModelViewSet):
         )
         
         return top_queryset
+
+    def destroy(self, request, *args, **kwargs):
+        object_id = kwargs.get('pk')
+        
+        if not request.user.is_authenticated:
+            raise NotAuthenticated((_("اطلاعات برای اعتبارسنجی ارسال نشده است.")))
+        
+        if not object_id:
+            return Response({"error": "پارامترها الزامی هستند."}, status=status.HTTP_400_BAD_REQUEST)
+
+        comment = get_object_or_404(
+            Comment,
+            user=request.user,
+            pk=object_id,
+            is_deleted=False,
+            is_approved=True,
+        )
+
+        comment.is_deleted = True
+        comment.save()
+        return Response({"message": "کامنت با موفقیت حذف شد."}, status=status.HTTP_204_NO_CONTENT)

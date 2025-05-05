@@ -12,9 +12,10 @@ from .forms import CommentAdminForm
 class CommentAdmin(SimpleHistoryAdmin, DraggableMPTTAdmin):
     form = CommentAdminForm
     list_display = (
-        "tree_actions", "indented_title", "is_approved",
+        "tree_actions", "indented_title",
+        "is_approved", "is_deleted"
     )
-    list_filter = ("is_approved", "created_at", 'user__id')
+    list_filter = ("is_approved", "is_deleted", "created_at", 'user__id')
     search_fields = ("text", "object_slug")
     readonly_fields = (
         "created_at", "updated_at", 'approved_at', 'parent_link',
