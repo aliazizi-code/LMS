@@ -1,12 +1,7 @@
 from django.utils import timezone
-from django.db.models.signals import post_delete
-from django.db.models import F
-from django.dispatch import receiver
-from .models import Comment
-
 from django.db.models.signals import pre_save, post_delete
-from django.dispatch import receiver
 from django.db.models import F
+from django.dispatch import receiver
 from .models import Comment
 
 

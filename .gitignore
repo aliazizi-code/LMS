@@ -179,6 +179,9 @@ cython_debug/
 # End of https://www.toptal.com/developers/gitignore/api/django,redis
 
 
-#IDE
+# IDE
 .idea
 .vscode
+
+# Celery
+celerybeat-schedule

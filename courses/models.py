@@ -231,6 +231,8 @@ class Course(models.Model):
     count_students = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد دانشجویان'))
     count_lessons = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد درس ها'))
     count_comments = models.PositiveSmallIntegerField(default=0, verbose_name=_('تعداد نظر ها'))
+    count_views = models.PositiveIntegerField(default=0)
+    count_unique_views = models.PositiveIntegerField(default=0)
     duration = models.DurationField(
         default=timezone.timedelta(0),
         editable=False,

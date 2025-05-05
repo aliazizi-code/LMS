@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'accounts.apps.AccountsConfig',
     'courses.apps.CoursesConfig',
     'comments.apps.CommentsConfig',
+    'VisitCounter.apps.VisitCounterConfig',
 ]
 
 MIDDLEWARE = [
