@@ -52,8 +52,14 @@ class Comment(MPTTModel):
     def clean(self):
         super().clean()
         
+        ALLOWED_VISIT_MODELS = ["article", "course"]
+        
         if self.content_type and self.object_slug:
             related_model = self.content_type.model_class()
+            
+            if related_model._meta.model_name.lower() not in ALLOWED_VISIT_MODELS:
+                raise ValidationError(_("این مدل اجازه‌ی دریافت بازدید را ندارد."))
+            
             if not related_model.objects.filter(
                 slug=self.object_slug, is_published=True,
                 is_deleted=False).exists():
