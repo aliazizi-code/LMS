@@ -2,15 +2,10 @@ from django.db.models.signals import post_save, post_migrate
 from django.contrib.auth.models import Permission, Group
 from django.contrib.contenttypes.models import ContentType
 from django.dispatch import receiver
-from accounts.models import JobCategory, EmployeeProfile, CustomGroup
+from accounts.models import EmployeeProfile, CustomGroup
 from courses.models import Course
 # from blog.models import Article # (uncomment if needed)
 from utils import update_descendants_active_status
-
-
-@receiver(post_save, sender=JobCategory)
-def update_job_category_status(sender, instance, **kwargs):
-    update_descendants_active_status(instance)
 
 
 @receiver(post_migrate)
