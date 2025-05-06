@@ -36,7 +36,7 @@ class UserChangeForm(forms.ModelForm):
 
 
 class UserRegistrationForm(forms.Form):
-    phone = forms.CharField(max_length=11)
+    phone = forms.CharField(max_length=13)
 
     def clean_phone(self):
         phone = self.cleaned_data['phone']
@@ -52,16 +52,3 @@ class VerifyCodeForm(forms.Form):
 class UserLoginForm(forms.Form):
     phone = forms.CharField()
     password = forms.CharField(widget=forms.PasswordInput)
-
-
-class UserProfileForm(forms.ModelForm):
-    class Meta:
-        model = UserProfile
-        fields = ('job', 'avatar', 'age', 'gender')
-
-    def clean_avatar(self):
-        avatar = self.cleaned_data.get('avatar')
-        if avatar:
-            # Validate image size if necessary
-            pass  # Add your custom validation logic here
-        return avatar
