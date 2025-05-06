@@ -5,7 +5,6 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import Group
 from .forms import UserCreationForm, UserChangeForm
 from . import models
-from mptt.admin import DraggableMPTTAdmin
 
 
 class UserAdmin(BaseUserAdmin):
@@ -34,18 +33,6 @@ class UserAdmin(BaseUserAdmin):
         if not request.user.is_superuser:
             form.base_fields['is_superuser'].disabled = True
         return form
-
-
-class JobCategoryAdmin(DraggableMPTTAdmin):
-    list_display = ("tree_actions",'indented_title', 'is_active')
-    autocomplete_fields = ('parent',)
-    list_filter = ('is_active', 'parent')
-    readonly_fields = ('created_at', 'updated_at')
-    search_fields = ('title',)
-
-    fieldsets = (
-        (None, {'fields': ('title', 'parent', 'is_active', 'created_at', 'updated_at')}),
-    )
 
 
 class UserProfileAdmin(admin.ModelAdmin):
@@ -95,7 +82,6 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
 
 
 admin.site.register(models.User, UserAdmin)
-admin.site.register(models.JobCategory, JobCategoryAdmin)
 admin.site.register(models.Job)
 admin.site.register(models.Skill)
 admin.site.register(models.UserProfile, UserProfileAdmin)
