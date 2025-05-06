@@ -4,7 +4,6 @@ from django.utils.translation.trans_null import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from imagekit.models import ImageSpecField
-from mptt.models import MPTTModel, TreeForeignKey
 from taggit.managers import TaggableManager
 
 from .managers import UserManager
@@ -97,49 +96,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f"شناسه: {self.id} - - - نام : {full_name}"
 
 
-class JobCategory(MPTTModel):
-    title = models.CharField(max_length=200, verbose_name=_('عنوان'))
-    parent = TreeForeignKey(
-        'self',
-        on_delete=models.CASCADE,
-        null=True, blank=True,
-        related_name='children',
-        verbose_name=_('والد')
-    )
-    is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_('تاریخ ایجاد')
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        verbose_name=_('تاریخ ویرایش')
-    )
-
-    def __str__(self):
-        return self.title
-    
-    def clean(self):
-        if self.parent:
-            level = self.parent.get_level() + 1
-            if level > 2:
-                raise ValidationError(_('حداکثر تعداد سطوح دسته بندی ۲ سطح می‌باشد.'))
-
-    class Meta:
-        verbose_name = _('دسته بندی شغل')
-        verbose_name_plural = _('دسته بندی شغل ها')
-        ordering = ['title']
-
-
 class Job(models.Model):
     name = models.CharField(max_length=200, verbose_name=_('عنوان'))
     is_active = models.BooleanField(default=True, verbose_name=_('وضعیت فعال بودن/نبودن'))
-    category = models.ManyToManyField(
-        JobCategory,
-        related_name='jobs',
-        blank=True,
-        verbose_name=_('دسته بندی')
-    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name=_('تاریخ ایجاد')
@@ -271,12 +230,12 @@ class EmployeeProfile(models.Model):
         verbose_name=_('پروفایل عمومی کاربر')
     )
     username = models.CharField(
-        max_length=150,
+        max_length=50,
         unique=True,
         verbose_name=_('نام کاربری'),
         validators=[
             RegexValidator(
-                regex=r'^[a-z0-9\-_]{3,150}$',
+                regex=r'^[a-z0-9\-_]{3,50}$',
                 message=_('نام کاربری باید فقط شامل حروف کوچک انگلیسی و اعداد باشد و نباید فاصله یا علامت خاصی داشته باشد.')
             )
         ],
@@ -305,7 +264,6 @@ class EmployeeProfile(models.Model):
         permissions = (
             ("can_teacher", "Can teacher"),
             ("can_employee", "Can employee"),
-            # ("can_author", "Can author"),
         )
         indexes = [
             models.Index(fields=['username']),
@@ -318,12 +276,12 @@ class SocialLink(models.Model):
         telegram = 'telegram', _('تلگرام')
         instagram = 'instagram', _('اینستاگرام')
         linkedin = 'linkedin', _('لینکدین')
-        x = 'x', _('ایکس')
+        # x = 'x', _('ایکس')
         # threads = 'threads', _('تردز')
         # facebook = 'facebook', _('فیسبوک')
         # youtube = 'youtube', _('یوتیوب')
         github = 'github', _('گیت‌هاب')
-        gitlab = 'gitlab', _('گیت‌لب')
+        # gitlab = 'gitlab', _('گیت‌لب')
     
     social_media_type = models.CharField(
         max_length=20,
@@ -390,7 +348,6 @@ class SocialLink(models.Model):
 
 class CustomGroup(models.Model):
     group = models.OneToOneField(Group, on_delete=models.CASCADE, verbose_name=_("گروه"), related_name='custom_group')
-    description = models.TextField(null=True, blank=True, verbose_name=_("توضیحات"))
     is_display = models.BooleanField(default=False, verbose_name=_("وضعیت نمایش"))
     
     def __str__(self):
