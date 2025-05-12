@@ -312,12 +312,12 @@ class SocialLink(models.Model):
             self.SocialMediaType.telegram: "https://t.me/",
             self.SocialMediaType.instagram: "https://www.instagram.com/",
             self.SocialMediaType.linkedin: "https://www.linkedin.com/",
-            self.SocialMediaType.x: "https://x.com/",
+            # self.SocialMediaType.x: "https://x.com/",
             # self.SocialMediaType.threads: "https://www.threads.net/",
             # self.SocialMediaType.facebook: "https://www.facebook.com/",
             # self.SocialMediaType.youtube: "https://www.youtube.com/",
             self.SocialMediaType.github: "https://github.com/",
-            self.SocialMediaType.gitlab: "https://gitlab.com/",
+            # self.SocialMediaType.gitlab: "https://gitlab.com/",
         }
         
         if SocialLink.objects.filter(
