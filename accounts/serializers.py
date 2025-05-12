@@ -1,11 +1,23 @@
 from rest_framework import serializers
 from django.core.validators import RegexValidator
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 
-from accounts.models import User, EmployeeProfile, Skill, Job, UserProfile, SocialLink
-from utils import verify_otp_auth_num, verify_otp_change_phone, BaseNameRelatedField, verify_otp_reset_password
+from accounts.models import (
+    User,
+    EmployeeProfile,
+    Skill,
+    Job,
+    UserProfile,
+    SocialLink
+)
+from utils import (
+    verify_otp_auth_num,
+    verify_otp_change_phone,
+    verify_otp_reset_password,
+    BaseNameRelatedField,
+)
 
 
 # region Field
@@ -22,13 +34,18 @@ class PhoneNumberField(serializers.CharField):
 class PasswordField(serializers.CharField):
     default_validators = [
         RegexValidator(
-            regex=r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#\$%\^&\*\(\)-_\+=\{\}:\;"<>,\.?\/]).{8,}$',
-            message="Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one digit, and one special character."
+            regex=r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*()\-_=+{}[\]|;:",.<>/?]).{8,}$',
+            message=(
+                "Password must be at least 8 characters long and include: "
+                "1 uppercase letter, 1 lowercase letter, 1 digit, and "
+                "1 special character (!@#$ etc.)"
+            )
         )
     ]
 
     def __init__(self, *args, **kwargs):
-        super(PasswordField, self).__init__(required=True, write_only=True, *args, **kwargs)
+        kwargs.setdefault('style', {'input_type': 'password'})
+        super().__init__(required=True, write_only=True, *args, **kwargs)
 
 
 class SkillRelatedField(BaseNameRelatedField):
@@ -62,17 +79,21 @@ class VerifyOTPSerializer(serializers.Serializer):
 
 class BaseLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
-
+    
     def validate(self, attrs):
         super().validate(attrs)
-        password = attrs['password']
-        user = self.get_user(attrs)
-
-        if not user.check_password(password):
-            raise serializers.ValidationError("Incorrect password.")
-        
-        attrs['user'] = user
-        return attrs
+        try:
+            user = User.objects.get(phone=attrs['phone'])
+            if not user.check_password(attrs['password']):
+                raise serializers.ValidationError(
+                    {"password": _("پسورد اشتباه است")}
+                )
+            attrs['user'] = user
+            return attrs
+        except ObjectDoesNotExist:
+            raise serializers.ValidationError(
+                {"password": _("پسورد اشتباه است")}
+            )
 
     def get_user(self, attrs):
         raise NotImplementedError("Subclasses must implement get_user method")
