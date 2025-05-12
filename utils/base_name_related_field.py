@@ -8,9 +8,18 @@ class BaseNameRelatedField(serializers.PrimaryKeyRelatedField):
     display_field = 'name'
     
     def to_representation(self, value):
+        if value is None:
+            return None
+            
         if not hasattr(value, self.display_field):
             try:
+                if not self.model:
+                    raise ValueError("Model must be set")
+                    
                 value = self.model.objects.get(pk=value.pk)
             except ObjectDoesNotExist:
                 return None
-        return getattr(value, self.display_field)
+            except self.model.DoesNotExist:
+                return None
+                
+        return getattr(value, self.display_field, None)
