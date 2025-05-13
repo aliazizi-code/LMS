@@ -218,9 +218,9 @@ SPECTACULAR_SETTINGS = {
 
 # OTP
 OTP = {
-    "EXPIRATION_TIME_SECONDS": 5,
+    "EXPIRATION_TIME_SECONDS": 60,
     "LONG_TIME_SECONDS": 2 * 60 * 60,
-    "LONG_MAX_REQUESTS": 2,
+    "LONG_MAX_REQUESTS": 10,
 
     "VALID_WINDOW": 1,
     # VALID_WINDOW defines how many time steps are valid for OTP
