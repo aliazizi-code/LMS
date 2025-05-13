@@ -10,7 +10,7 @@ urlpatterns = [
     # endregion
 
     # region Token management
-    path('token/refresh/', views.RefreshTokenAPIView.as_view(), name='token_refresh'),
+    path('token/refresh/', views.RefreshTokenAPIView.as_view(), name='token-refresh'),
     # endregion
 
     # region User profile management
