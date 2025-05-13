@@ -180,6 +180,9 @@ class DualThrottle(BaseThrottle):
         """
         Checks if the request is allowed under both short-term and long-term limits.
         """
+        if settings.DEBUG:
+            return True
+        
         self.key = self.get_cache_key(request, view)
         if not self.key:
             return True
