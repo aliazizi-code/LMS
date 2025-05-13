@@ -46,8 +46,10 @@ class BaseLoginView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def _handle_login(self, user, request):
-        response = Response(status=status.HTTP_200_OK)
+    def _handle_login(self, user, request, created):
+        response = Response(
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
 
         # Set auth cookies
         refresh = RefreshToken.for_user(user)
@@ -60,10 +62,9 @@ class BaseLoginView(APIView):
         return response
 
 
-
 class RequestOTPView(APIView):
     serializer_class = RequestOTPSerializer
-    # permission_classes = [IsAnonymousUser]
+    permission_classes = [IsAnonymous]
     throttle_classes = [DualThrottle]
 
     @request_otp_docs
@@ -109,7 +110,7 @@ class VerifyOTPView(BaseLoginView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def _generate_response(self, user, created, request):
-        response = self._handle_login(user, request)
+        response = self._handle_login(user, request, created)
 
         response.data = {
             'message': 'User verified successfully',
@@ -136,7 +137,7 @@ class PhoneLoginView(BaseLoginView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def _generate_response(self, user, request):
-        response = self._handle_login(user, request)
+        response = self._handle_login(user, request, False)
 
         response.data = {'phone': str(user.phone),}
 
