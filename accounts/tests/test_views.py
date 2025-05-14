@@ -1,12 +1,17 @@
+from PIL import Image
+import tempfile
+
 from django.urls import reverse
 from django.test import override_settings
 from django.utils.timezone import timedelta, datetime
+from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 from rest_framework import status
 from unittest.mock import patch
 from freezegun import freeze_time
 
-from accounts.models import User
+from accounts.models import User, Job, Skill, EmployeeProfile, UserProfile, SocialLink
 
 
 # region Auth
@@ -69,9 +74,9 @@ class TestRequestOTPView(APITestCase):
             }
         },
         OTP={
-            "EXPIRATION_TIME_SECONDS": 120,   # فاصله‌ی ۱ دقیقه‌ای بین درخواست‌ها
-            "LONG_TIME_SECONDS": 2 * 60 * 60,  # ۲ ساعت محدودیت بلندمدت
-            "LONG_MAX_REQUESTS": 20,          # حداکثر ۲۰ درخواست در بازه‌ی ۲ ساعته
+            "EXPIRATION_TIME_SECONDS": 120,
+            "LONG_TIME_SECONDS": 2 * 60 * 60,
+            "LONG_MAX_REQUESTS": 20,
             "VALID_WINDOW": 1,
         },
         DEBUG=False,
@@ -264,12 +269,175 @@ class TestRefreshTokenView(APITestCase):
 
 # region Employee and Team
 
-# class TestEmployeeListView(APITestCase):
-#     @classmethod
-#     def setUpTestData(cls):
-#         cls.url = reverse('employee-list')
+class EmployeeTestMixin:
+    """Mixin containing shared test methods for employee views"""
+    
+    @classmethod
+    def setUpTestData(cls):
+        cls.url = reverse('employee-list')
+        cls.url1 = reverse('employee-detail', kwargs={'username': 'username1'})
+        cls.url2 = reverse('employee-detail', kwargs={'username': 'username2'})
+        cls.url3 = reverse('employee-detail', kwargs={'username': 'username3'})
+        cls.url4 = reverse('employee-detail', kwargs={'username': 'username4'})
+        cls.url_hidden = reverse('employee-detail', kwargs={'username': 'hidden-user'})
         
-#         # Create some employees
-#         for i in range(5):
-#             User.objects.create(phone=f"+98912345678{i}")
+        cls.job1 = Job.objects.create(name="Job 1")
+        
+        cls.skill1 = Skill.objects.create(name="Skill 1")
+        cls.skill2 = Skill.objects.create(name="Skill 2")
+        
+        for i in range(1, 5):
+            cls.test_image = cls.create_test_image(f"username{i}")
+            cls.create_employee(i, cls.job1, [cls.skill1, cls.skill2], ["role1", "role2"])
+        
+        cls.create_hidden_employee("hidden-user", cls.job1, [cls.skill1, cls.skill2])
+    
+    @classmethod
+    def create_test_image(cls, username):
+        """Helper method to create a test image with consistent filename"""
+        image = Image.new('RGB', (100, 100), color='red')
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.jpg')
+        image.save(tmp_file, format='JPEG')
+        tmp_file.seek(0)
+        return SimpleUploadedFile(
+            name=f'avatar_{username}.jpg',
+            content=tmp_file.read(),
+            content_type='image/jpeg'
+        )
+    
+    @classmethod
+    def create_employee(cls, i, job, skills, roles, display=True):
+        """Helper method to create employee with complete profile"""
+        user = User.objects.create(
+            phone=f"+98912345678{i}",
+            first_name=f"First{i}",
+            last_name=f"Last{i}"
+        )
+        
+        user_profile = UserProfile.objects.create(
+            user=user,
+            job=job,
+            age=20+i,
+            gender=UserProfile.Gender.male if i % 2 else UserProfile.Gender.female,
+            bio=f"Bio for user {i}",
+            avatar=cls.test_image
+        )
+        user_profile.skills.add(*skills)
+        
+        employee_profile = EmployeeProfile.objects.create(
+            user_profile=user_profile,
+            username=f"username{i}",
+        )
+        employee_profile.roles.set(roles)
+        
+        SocialLink.objects.create(
+            social_media_type=SocialLink.SocialMediaType.github,
+            link=f"https://github.com/username{i}",
+            employee_profile=employee_profile, 
+        )
+        
+        if display:
+            group = Group.objects.create(name=f"Group {i}")
+            group.custom_group.is_display = True
+            group.custom_group.save()
+            user.groups.add(group)
+        
+        return employee_profile
+
+    @classmethod
+    def create_hidden_employee(cls, username, job, skills):
+        """Helper to create hidden employee profile"""
+        hidden_user = User.objects.create(
+            phone=f"+98911111111",
+            first_name="Hidden",
+            last_name="User"
+        )
+        
+        hidden_profile = UserProfile.objects.create(
+            user=hidden_user,
+            job=job,
+            age=30,
+            gender=UserProfile.Gender.female,
+            bio="Hidden bio",
+            avatar=cls.create_test_image(username)
+        )
+        hidden_profile.skills.add(*skills)
+        
+        employee_profile = EmployeeProfile.objects.create(
+            user_profile=hidden_profile,
+            username=username
+        )
+        employee_profile.roles.set(["role1", "role2"])
+        
+        hidden_group = Group.objects.create(name="Hidden Group")
+        hidden_group.custom_group.is_display = False
+        hidden_group.custom_group.save()
+        hidden_user.groups.add(hidden_group)
+        
+        SocialLink.objects.create(
+            social_media_type=SocialLink.SocialMediaType.github,
+            link=f"https://github.com/{username}",
+            employee_profile=employee_profile
+        )
+        
+        return employee_profile
+
+
+class TestEmployeeListView(EmployeeTestMixin, APITestCase):
+    def test_get_employee_list_success(self):
+        """Test successful API response"""
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 5)
+
+        for i in range(0, 5):
+            self.assertIn('username', response.data[i])
+            self.assertIn('full_name', response.data[i])
+            self.assertIn('avatar_thumbnail', response.data[i])
             
+            self.assertTrue(response.data[i]['username'])
+            self.assertTrue(response.data[i]['full_name'])
+            self.assertTrue(response.data[i]['avatar_thumbnail'])
+
+
+class TestEmployeeDetailView(EmployeeTestMixin, APITestCase):
+    def test_get_employee_detail_success(self):
+        """Test successful API response"""
+        for url, i in zip([self.url1, self.url2, self.url3, self.url4], range(1, 5)):
+            response = self.client.get(url)
+            response.data.pop('avatar')
+            
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            
+            self.assertEqual(
+                response.data,
+                {
+                    'full_name': f'First{i} Last{i}',
+                    'bio': f'Bio for user {i}',
+                    'groups': [f'Group {i}'],
+                    'skills': ['Skill 2', 'Skill 1'],
+                    'roles': ['role1', 'role2'],
+                    'social_links': [{
+                        'link': f'https://github.com/username{i}',
+                        'type_social': 'github'
+                    }],
+                }
+            )
+
+        response = self.client.get(self.url_hidden)
+        response.data.pop('avatar')
+        self.assertEqual(
+                response.data,
+                {
+                    'full_name': 'Hidden User',
+                    'bio': "Hidden bio",
+                    'groups': [],
+                    'skills': ['Skill 2', 'Skill 1'],
+                    'roles': ['role1', 'role2'],
+                    'social_links': [{
+                        'link': f'https://github.com/hidden-user',
+                        'type_social': 'github'
+                    }],
+                }
+            )
