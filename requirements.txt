@@ -29,6 +29,7 @@ djangorestframework_simplejwt==5.5.0
 dotenv==0.9.9
 drf-spectacular==0.28.0
 executing==2.2.0
+freezegun==1.5.1
 inflection==0.5.1
 ipython==9.0.2
 ipython_pygments_lexers==1.1.1
