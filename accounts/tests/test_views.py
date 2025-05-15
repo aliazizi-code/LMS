@@ -598,23 +598,119 @@ class TestCheckPhoneView(APITestCase):
         cls.valid_phone = "+989123456789"
         cls.not_existing_phon = "+989000000000"
         cls.invalid_phon = "invalid"
-        cls.url = reverse('reset-password-check-phone')
+        cls.url = reverse('check-phone')
         User.objects.create(phone=cls.valid_phone)
     
     def test_existing_phone(self):
-        response = self.client.get(self.url, {'phone': self.valid_phone})
+        response = self.client.post(self.url, {'phone': self.valid_phone})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["phone"], self.valid_phone)
     
     def test_not_existing_phone(self):
-        response = self.client.get(self.url, {'phone': self.not_existing_phon})
+        response = self.client.post(self.url, {'phone': self.not_existing_phon})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
     def test_invalid_phone(self):
-        response = self.client.get(self.url, {'phone': self.invalid_phon})
+        response = self.client.post(self.url, {'phone': self.invalid_phon})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
     def test_missing_phone(self):
-        response = self.client.get(self.url, {})
+        response = self.client.post(self.url, {})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-  
+
+
+class TestResetPasswordView(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.valid_phone = "+989123456789"
+        cls.not_existing_phon = "+989000000000"
+        cls.invalid_phon = "invalid"
+        
+        cls.url_send_otp = reverse('reset-password-send-otp')
+        cls.url_reset_pass = reverse('reset-password')
+        
+        cls.valid_pass = "Pass123?"
+        cls.valid_new_pass = "NewPass123?"
+        cls.old_pass = 'old_pass'
+        
+        cls.user = User.objects.create(phone=cls.valid_phone)
+        cls.user.set_password(cls.old_pass)
+        cls.user.save()
+    
+    @override_settings(DEBUG=True)
+    @patch('accounts.views.generate_otp_reset_password', return_value=123456)
+    @patch('accounts.views.send_otp_to_phone_tasks.delay')
+    def test_check_phone_success(self, mock_send_otp, mock_generate_otp):
+        response = self.client.post(self.url_send_otp, {'phone': self.valid_phone})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["phone"], self.valid_phone)
+        self.assertEqual(response.data['otp'], 123456)
+        
+        mock_generate_otp.assert_called_once_with(self.valid_phone)
+        mock_send_otp.assert_called_once_with(123456)
+    
+    def test_not_existing_phone(self):
+        response = self.client.post(self.url_send_otp, {'phone': self.not_existing_phon})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_invalid_phone(self):
+        response = self.client.post(self.url_send_otp, {'phone': self.invalid_phon})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_missing_phone(self):
+        response = self.client.post(self.url_send_otp, {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    @patch('accounts.serializers.verify_otp_reset_password', return_value=True)
+    def test_reset_password_success(self, mock_verify_otp):
+        self.assertTrue(self.user.check_password(self.old_pass))
+        
+        response = self.client.post(
+            self.url_reset_pass,
+            {'phone': self.valid_phone, 'otp': 123456, 'password': self.valid_new_pass}
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.valid_new_pass))
+        
+        mock_verify_otp.assert_called_once_with(self.valid_phone, 123456)
+
+    @patch('accounts.serializers.verify_otp_reset_password', return_value=False)
+    def test_reset_password_invalid_otp(self, mock_verify_otp):
+        self.assertTrue(self.user.check_password(self.old_pass))
+        
+        response = self.client.post(
+            self.url_reset_pass,
+            {'phone': self.valid_phone, 'otp': 000000, 'password': self.valid_new_pass}
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_pass))
+        self.assertFalse(self.user.check_password(self.valid_new_pass))
+        
+        mock_verify_otp.assert_called_once_with(self.valid_phone, 000000)
+
+    def test_reset_password_missing_otp(self):
+        self.assertTrue(self.user.check_password(self.old_pass))
+        
+        response = self.client.post(
+            self.url_reset_pass,
+            {'phone': self.valid_phone, 'password': self.valid_new_pass}
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_pass))
+        self.assertFalse(self.user.check_password(self.valid_new_pass))
+    
+    def test_reset_password_missing_phone(self):
+        self.assertTrue(self.user.check_password(self.old_pass))
+        
+        response = self.client.post(
+            self.url_reset_pass,
+            {'password': self.valid_new_pass}
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_pass))
+        self.assertFalse(self.user.check_password(self.valid_new_pass))
+    
