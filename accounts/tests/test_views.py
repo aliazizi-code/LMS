@@ -592,5 +592,29 @@ class TestChangePasswordView(APITestCase):
         self.assertFalse(self.user.check_password(self.new_pass))
 
 
-
+class TestCheckPhoneView(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.valid_phone = "+989123456789"
+        cls.not_existing_phon = "+989000000000"
+        cls.invalid_phon = "invalid"
+        cls.url = reverse('reset-password-check-phone')
+        User.objects.create(phone=cls.valid_phone)
+    
+    def test_existing_phone(self):
+        response = self.client.get(self.url, {'phone': self.valid_phone})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["phone"], self.valid_phone)
+    
+    def test_not_existing_phone(self):
+        response = self.client.get(self.url, {'phone': self.not_existing_phon})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_invalid_phone(self):
+        response = self.client.get(self.url, {'phone': self.invalid_phon})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_missing_phone(self):
+        response = self.client.get(self.url, {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
   
