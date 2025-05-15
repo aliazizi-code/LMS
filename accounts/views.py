@@ -5,7 +5,6 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.views.decorators.cache import cache_page
-from django.contrib.auth.hashers import is_password_usable
 from django.middleware.csrf import rotate_token
 
 # Third Party Imports
@@ -244,7 +243,7 @@ class SetPasswordView(APIView):
         if serializer.is_valid():
             user = request.user
             
-            if is_password_usable(user.password):
+            if bool(user.password):
                 return Response(
                     {"detail": "کاربر از قبل رمز عبور دارد. لطفاً از گزینه «تغییر رمز عبور» استفاده کنید."},
                     status=status.HTTP_400_BAD_REQUEST
@@ -266,6 +265,12 @@ class ChangePasswordView(APIView):
         user = request.user
 
         if serializer.is_valid():
+            if not bool(user.password):
+                return Response(
+                    {"detail": "کاربر رمز عبور ندارد."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             data = serializer.validated_data
             new_password = data['password']
             
