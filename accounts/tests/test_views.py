@@ -2,16 +2,27 @@ from PIL import Image
 import tempfile
 
 from django.urls import reverse
-from django.test import override_settings
+from django.test import override_settings, TestCase
+from http.cookies import SimpleCookie
 from django.utils.timezone import timedelta, datetime
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
-from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch
 from freezegun import freeze_time
 
 from accounts.models import User, Job, Skill, EmployeeProfile, UserProfile, SocialLink
+
+
+class APITestCase(TestCase):
+    client_class = APIClient
+    
+    def login(self, user):
+        self.refresh = RefreshToken.for_user(user)
+        self.client.cookies['access_token'] = str(self.refresh.access_token)
+        self.client.cookies['refresh_token'] = str(self.refresh)
 
 
 # region Auth
@@ -212,16 +223,13 @@ class TestPhoneLoginView(APITestCase):
 
 
 class TestLogoutView(APITestCase):
-    @classmethod
-    def setUpTestData(self):
-        self.url_login = reverse('phone-login')
+    def setUp(self):
         self.url_logout = reverse('logout')
         self.user = User.objects.create(phone="+989123456789")
-        self.user.set_password("Pass123?")
-        self.user.save()
         
     def test_logout_success(self):
-        self.client.post(self.url_login, {"phone": "+989123456789", "password": "Pass123?"})
+        self.login(self.user)
+        
         self.assertIn('access_token', self.client.cookies.keys())
         response = self.client.post(self.url_logout)
         
@@ -441,3 +449,148 @@ class TestEmployeeDetailView(EmployeeTestMixin, APITestCase):
                     }],
                 }
             )
+
+# endregion
+
+# region Password
+
+class TestSetPasswordView(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create(phone='+989123456789')
+        
+        self.url = reverse('set-password')
+        self.valid_data = {'password': "Pass123?"}
+        self.invalid_data = {'password': "invalid"}
+        
+        self.login(self.user)
+    
+    def test_set_password_success(self):
+        self.assertFalse(bool(self.user.password))
+        
+        response = self.client.post(self.url, self.valid_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("Pass123?"))
+    
+    def test_set_password_has_password(self):
+        self.user.set_password('Pass123?')
+        self.user.save()
+        self.assertTrue(self.user.check_password("Pass123?"))
+        
+        self.assertTrue(bool(self.user.password))
+        response = self.client.post(self.url, self.valid_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(self.user.check_password("Pass123?"))
+    
+    def test_set_password_invalid_token(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        
+        response = self.client.post(self.url, self.valid_data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_set_invalid_password(self):
+        self.assertFalse(bool(self.user.password))
+        
+        response = self.client.post(self.url, self.invalid_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(self.user.check_password("invalid"))
+        self.assertFalse(bool(self.user.password))
+
+
+class TestChangePasswordView(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.url = reverse("change-password")
+        cls.user = User.objects.create(phone="+989123456789")
+        cls.new_pass = "NewPass1?"
+        cls.valid_old_pass = "Pass123?"
+        cls.invalid_old_pass = "invalid"
+    
+    def test_valid_old_pass(self):
+        self.user.set_password(self.valid_old_pass)
+        self.user.save()
+        
+        self.login(self.user)
+        self.assertTrue(bool(self.user.password))
+        
+        response = self.client.post(
+            self.url,
+            {'old_password': self.valid_old_pass, 'password': self.new_pass}
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(self.user.check_password(self.new_pass))
+    
+    def test_invalid_old_pass(self):
+        self.user.set_password(self.valid_old_pass)
+        self.user.save()
+        
+        self.login(self.user)
+        self.assertTrue(bool(self.user.password))
+        
+        response = self.client.post(
+            self.url,
+            {'old_password': self.invalid_old_pass, 'password': self.new_pass}
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(self.user.check_password(self.new_pass))
+        
+    def test_missing_old_password(self):
+        self.user.set_password(self.valid_old_pass)
+        self.user.save()
+        
+        self.login(self.user)
+        self.assertTrue(bool(self.user.password))
+        
+        response = self.client.post(
+            self.url,
+            {'password': self.new_pass}
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(self.user.check_password(self.new_pass))
+        
+    def test_missing_password(self):
+        self.user.set_password(self.valid_old_pass)
+        self.user.save()
+        
+        self.login(self.user)
+        self.assertTrue(bool(self.user.password))
+        
+        response = self.client.post(
+            self.url,
+            {'old_password': self.invalid_old_pass}
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(self.user.check_password(self.new_pass))
+
+    def test_not_existing_password(self):
+        self.login(self.user)
+        self.assertFalse(bool(self.user.password))
+        
+        response = self.client.post(
+            self.url,
+            {'old_password': self.valid_old_pass, 'password': self.new_pass}
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(bool(self.user.password))
+        
+    def test_without_login(self):
+        self.user.set_password(self.valid_old_pass)
+        self.user.save()
+        
+        self.assertTrue(bool(self.user.password))
+        response = self.client.post(
+            self.url,
+            {'old_password': self.valid_old_pass, 'password': self.new_pass}
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(self.user.check_password(self.new_pass))
+
+
+
+  
