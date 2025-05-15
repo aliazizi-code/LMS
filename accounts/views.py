@@ -286,8 +286,8 @@ class CheckPhoneView(APIView):
     permission_classes = [IsAnonymous]
     serializer_class = CheckPhoneSerializer
 
-    def get(self, request): 
-        serializer = self.serializer_class(data=request.query_params)
+    def post(self, request): 
+        serializer = self.serializer_class(data=request.data)
 
         if not serializer.is_valid():
             return Response(
@@ -300,10 +300,10 @@ class CheckPhoneView(APIView):
         }, status=status.HTTP_200_OK)
     
 
-class ResetPasswordView(APIView):
+class ResetPasswordViewSet(viewsets.ViewSet):
 
-    def get(self, request):
-        serializer = CheckPhoneSerializer(data=request.query_params)
+    def send_otp(self, request):
+        serializer = CheckPhoneSerializer(data=request.data)
 
         if serializer.is_valid():
             data = serializer.validated_data
@@ -320,9 +320,10 @@ class ResetPasswordView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def post(self, request):
+    def reset_pass(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
-
+        user = request.user
+        
         if serializer.is_valid():
             data = serializer.validated_data
             user = data['user']
