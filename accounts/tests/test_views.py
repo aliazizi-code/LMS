@@ -817,4 +817,51 @@ class TestUserProfileViewSet(APITestCase):
         response = self.client.patch(self.url, self.valid_new_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('avatar', response.data)
+
+
+class TestChangePhoneRequestView(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.valid_phone = "+989123456789"
+        cls.valid_new_phone = "+989123456780"
+        cls.url = reverse('change-phone-request')
+        cls.user = User.objects.create(phone=cls.valid_phone)
+    
+    def setUp(self):
+        self.login(self.user)
+    
+    def assert_bad_request(self, response, expected_fields):
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        for field in expected_fields:
+            self.assertIn(field, response.data)
+    
+    @override_settings(DEBUG=True)
+    @patch('accounts.views.generate_otp_change_phone', return_value=123456)
+    @patch('accounts.views.send_otp_to_phone_tasks.delay')
+    def test_request_otp_success(self, mock_send_otp, mock_generate_otp):
+        response = self.client.post(self.url, {"phone": self.valid_new_phone})
         
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['otp'], 123456)
+        
+        mock_generate_otp.assert_called_once_with(self.valid_new_phone)
+        mock_send_otp.assert_called_once_with(123456)
+    
+    def test_request_otp_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.post(self.url, {"phone": self.valid_new_phone})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertNotIn('otp', response.data)
+    
+    def test_request_otp_invalid_phone(self):
+        response = self.client.post(self.url, {"phone": "invalid"})
+        self.assert_bad_request(response, ["phone"])
+    
+    def test_request_otp_missing_phone(self):
+        response = self.client.post(self.url, {})
+        self.assert_bad_request(response, ["phone"])
+    
+    def test_request_otp_phone_already_exists(self):
+        User.objects.create(phone=self.valid_new_phone)
+        response = self.client.post(self.url, {"phone": self.valid_new_phone})
+        self.assert_bad_request(response, ["phone"])
