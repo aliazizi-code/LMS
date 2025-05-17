@@ -343,7 +343,7 @@ class ResetPasswordViewSet(viewsets.ViewSet):
 @user_profile_viewset_docs
 class UserProfileViewSet(viewsets.ViewSet):
     serializer_class = UserProfileSerializer
-    permission_classes = [IsAuthenticated] 
+    permission_classes = [IsAuthenticated]
 
     def retrieve(self, request):
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
@@ -477,6 +477,10 @@ class EmployeeSocialLinkViewSet(viewsets.ViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+
+# endregion
+
+
 # @method_decorator(cache_page(60 * 60), name='dispatch')
 class SkillListView(generics.ListAPIView):
     serializer_class = SkillListSerializer
@@ -487,5 +491,3 @@ class SkillListView(generics.ListAPIView):
 class JobListView(generics.ListAPIView):
     serializer_class = JobListSerializer
     queryset = Job.objects.filter(is_active=True)
-
-# endregion
