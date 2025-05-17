@@ -3,7 +3,6 @@ import tempfile
 
 from django.urls import reverse
 from django.test import override_settings, TestCase
-from http.cookies import SimpleCookie
 from django.utils.timezone import timedelta, datetime
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -23,6 +22,19 @@ class APITestCase(TestCase):
         self.refresh = RefreshToken.for_user(user)
         self.client.cookies['access_token'] = str(self.refresh.access_token)
         self.client.cookies['refresh_token'] = str(self.refresh)
+    
+    @classmethod
+    def create_test_image(cls, prefix='test'):
+        """Helper method to create a test image with consistent filename"""
+        image = Image.new('RGB', (100, 100), color='red')
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.jpg')
+        image.save(tmp_file, format='JPEG')
+        tmp_file.seek(0)
+        return SimpleUploadedFile(
+            name=f'avatar_{prefix}.jpg',
+            content=tmp_file.read(),
+            content_type='image/jpeg'
+        )
 
 
 # region Auth
@@ -299,19 +311,6 @@ class EmployeeTestMixin:
             cls.create_employee(i, cls.job1, [cls.skill1, cls.skill2], ["role1", "role2"])
         
         cls.create_hidden_employee("hidden-user", cls.job1, [cls.skill1, cls.skill2])
-    
-    @classmethod
-    def create_test_image(cls, username):
-        """Helper method to create a test image with consistent filename"""
-        image = Image.new('RGB', (100, 100), color='red')
-        tmp_file = tempfile.NamedTemporaryFile(suffix='.jpg')
-        image.save(tmp_file, format='JPEG')
-        tmp_file.seek(0)
-        return SimpleUploadedFile(
-            name=f'avatar_{username}.jpg',
-            content=tmp_file.read(),
-            content_type='image/jpeg'
-        )
     
     @classmethod
     def create_employee(cls, i, job, skills, roles, display=True):
@@ -713,4 +712,109 @@ class TestResetPasswordView(APITestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(self.old_pass))
         self.assertFalse(self.user.check_password(self.valid_new_pass))
+
+# endregion
+
+# region Update
+
+class TestUserProfileViewSet(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(phone='+989123456789', password="Pass123?")
+        self.user.first_name = 'John'
+        self.user.last_name = 'Doe'
+        self.user.save()
     
+        self.user_profile = UserProfile.objects.create(**self.valid_data, user=self.user)
+        self.user_profile.skills.add(self.skill1, self.skill2)
+        
+        self.login(self.user)
+    
+    @classmethod
+    def setUpTestData(cls):
+        cls.job1 = Job.objects.create(name="Software Engineer")
+        cls.job2 = Job.objects.create(name="Data Scientist")
+        cls.skill1 = Skill.objects.create(name="Python")
+        cls.skill2 = Skill.objects.create(name='Django')
+        
+        cls.url = reverse('user-profile')
+        
+        cls.valid_data = {
+            'bio': 'This is a test bio',
+            'job': cls.job1,
+            'age': 30,
+            'avatar': cls.create_test_image(),
+            'gender': UserProfile.Gender.male
+        }
+        cls.valid_new_data = {
+            'first_name': 'Kevin',
+            'last_name': 'levrone',
+            'bio': 'This is a Update bio',
+            'job': cls.job2.id,
+            'age': 60,
+            'skills': [cls.skill1.id]
+        }
+        
+    def test_retrieve_success(self):
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(bool(response.data['avatar']))
+        response.data.pop('avatar')
+        self.assertEqual(
+            response.data,
+            {
+                'first_name': 'John',
+                'last_name': 'Doe',
+                'bio': 'This is a test bio',
+                'job': 'Software Engineer',
+                'age': 30,
+                'gender': 'مرد',
+                'phone': '+989123456789',
+                'skills': ['Django', 'Python']
+            }
+        )
+    
+    def assert_protected_fields(self, response):
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        fields_to_check = [
+            'first_name', 'last_name', 'bio', 'job', 
+            'age', 'gender', 'phone', 'skills', 'avatar'
+        ]
+        for field in fields_to_check:
+            self.assertNotIn(field, response.data)
+    
+    def test_retrieve_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.get(self.url)
+        self.assert_protected_fields(response)
+    
+    def test_partial_update_success(self):
+        response = self.client.patch(self.url, self.valid_new_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(bool(response.data['avatar']))
+        response.data.pop('avatar')
+        self.assertEqual(
+            response.data,
+            {
+                'first_name': 'Kevin',
+                'last_name': 'levrone',
+                'bio': 'This is a Update bio',
+                'job': 'Data Scientist',
+                'age': 60,
+                'gender': 'مرد',
+                'phone': '+989123456789',
+                'skills': ['Python']
+            }
+        )
+    
+    def test_partial_update_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.patch(self.url, self.valid_new_data)
+        self.assert_protected_fields(response)
+
+    def test_partial_update_invalid_data(self):
+        self.valid_new_data['avatar'] = 'invalid_data'
+        response = self.client.patch(self.url, self.valid_new_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('avatar', response.data)
+        
