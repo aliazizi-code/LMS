@@ -67,7 +67,7 @@ class RequestOTPSerializer(serializers.Serializer):
 
 class VerifyOTPSerializer(serializers.Serializer):
     phone = PhoneNumberField(max_length=13)
-    otp = serializers.IntegerField(required=True)
+    otp = serializers.IntegerField(required=True, write_only=True)
 
     def validate_otp(self, value):
         phone = self.initial_data.get('phone')
@@ -276,6 +276,11 @@ class ChangePhoneRequestSerializer(RequestOTPSerializer):
           
         
 class ChangePhoneVerifySerializer(VerifyOTPSerializer):
+    def validate_phone(self, value):
+        if User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError(_("این شماره تلفن قبلاً ثبت شده است."))
+        return value
+    
     def validate_otp(self, value):
         phone = self.initial_data.get('phone')
         
