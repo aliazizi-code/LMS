@@ -963,6 +963,14 @@ class TestEmployeeProfileViewSet(APITestCase):
         self.assertEqual(response.data['username'], self.valid_username)
         self.assertEqual(self.user_profile.employee_profile.username, self.valid_username)
     
+    def test_create_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.post(self.url, {'username': self.valid_username})
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertNotIn('username', response.data)
+        self.assertFalse(hasattr(self.user_profile, 'employee_profile'))
+    
     def test_create_invalid_username(self):
         response = self.client.post(self.url, {'username': self.invalid_username})
         
@@ -1006,6 +1014,13 @@ class TestEmployeeProfileViewSet(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
+    def test_retrieve_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertNotIn('username', response.data)
+    
     def test_partial_update_valid(self):
         EmployeeProfile.objects.create(user_profile=self.user_profile, username=self.valid_username)
         
@@ -1045,3 +1060,10 @@ class TestEmployeeProfileViewSet(APITestCase):
         self.assertIn('username', response.data)
         self.user_profile.refresh_from_db()
         self.assertEqual(self.user_profile.employee_profile.username, self.valid_username) 
+
+    def test_partial_update_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.patch(self.url, {'username': self.valid_new_username})
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertNotIn('username', response.data)
