@@ -865,3 +865,74 @@ class TestChangePhoneRequestView(APITestCase):
         User.objects.create(phone=self.valid_new_phone)
         response = self.client.post(self.url, {"phone": self.valid_new_phone})
         self.assert_bad_request(response, ["phone"])
+
+
+class TestChangePhoneVerifyView(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.valid_phone = "+989123456789"
+        cls.valid_new_phone = "+989123456780"
+        cls.url = reverse('change-phone-verify')
+        cls.user = User.objects.create(phone=cls.valid_phone)
+    
+    def setUp(self):
+        self.login(self.user)
+    
+    def assert_bad_request(self, response, expected_fields):
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        for field in expected_fields:
+            self.assertIn(field, response.data)
+    
+    @override_settings(DEBUG=True)
+    @patch('accounts.serializers.verify_otp_change_phone', return_value=True)
+    def test_verify_otp_success(self, mock_verify_otp):
+        response = self.client.post(self.url, {"phone": self.valid_new_phone, "otp": 123456})
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["phone"], self.valid_new_phone)
+        mock_verify_otp.assert_called_once_with(self.valid_new_phone, 123456)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.phone, self.valid_new_phone)
+        
+    def test_verify_otp_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.post(self.url, {"phone": self.valid_new_phone, "otp": 123456})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertNotIn('phone', response.data)
+    
+    @patch('accounts.serializers.verify_otp_change_phone', return_value=True)
+    def test_verify_otp_invalid_phone(self, mock_verify_otp):
+        response = self.client.post(self.url, {"phone": "invalid", "otp": 123456})
+        self.assert_bad_request(response, ["phone"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.phone, self.valid_phone)
+    
+    @patch('accounts.serializers.verify_otp_change_phone', return_value=True)
+    def test_verify_otp_missing_phone(self, mock_verify_otp):
+        response = self.client.post(self.url, {"otp": 123456})
+        self.assert_bad_request(response, ["phone"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.phone, self.valid_phone)
+    
+    @patch('accounts.serializers.verify_otp_change_phone', return_value=True)
+    def test_verify_otp_missing_otp(self, mock_verify_otp):
+        response = self.client.post(self.url, {"phone": self.valid_new_phone})
+        self.assert_bad_request(response, ["otp"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.phone, self.valid_phone)
+    
+    @patch('accounts.serializers.verify_otp_change_phone', return_value=True)
+    def test_verify_otp_phone_already_exists(self, mock_verify_otp):
+        User.objects.create(phone=self.valid_new_phone)
+        response = self.client.post(self.url, {"phone": self.valid_new_phone, "otp": 123456})
+        self.assert_bad_request(response, ["phone"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.phone, self.valid_phone)
+    
+    @patch('accounts.serializers.verify_otp_change_phone', return_value=False)
+    def test_invalid_otp(self, mock_verify_otp):
+        response = self.client.post(self.url, {"phone": self.valid_new_phone, "otp": 000000})
+        self.assert_bad_request(response, ["otp"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.phone, self.valid_phone)
+        mock_verify_otp.assert_called_once_with(self.valid_new_phone, 000000)
