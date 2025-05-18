@@ -936,3 +936,112 @@ class TestChangePhoneVerifyView(APITestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.phone, self.valid_phone)
         mock_verify_otp.assert_called_once_with(self.valid_new_phone, 000000)
+
+
+class TestEmployeeProfileViewSet(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create(
+            phone='+989123456789',
+            first_name='Kevin',
+            last_name='Eleven',
+        )
+        cls.user_profile = UserProfile.objects.create(user=cls.user)
+        cls.url = reverse('employee-profile')
+        cls.valid_username = 'username1'
+        cls.valid_new_username = 'new-username'
+        cls.invalid_username = 'invalid username!!!'
+        
+    def setUp(self):
+        self.login(self.user)
+        
+    def test_create_valid_username(self):
+        response = self.client.post(self.url, {'username': self.valid_username})
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(bool(self.user_profile.employee_profile))
+        self.assertEqual(response.data['username'], self.valid_username)
+        self.assertEqual(self.user_profile.employee_profile.username, self.valid_username)
+    
+    def test_create_invalid_username(self):
+        response = self.client.post(self.url, {'username': self.invalid_username})
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('username', response.data)
+        self.assertFalse(hasattr(self.user_profile, 'employee_profile'))
+    
+    def test_create_username_already_exists(self):
+        EmployeeProfile.objects.create(user_profile=self.user_profile, username=self.valid_username)
+        
+        response = self.client.post(self.url, {'username': self.valid_username})
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('username', response.data)
+        self.assertEqual(EmployeeProfile.objects.filter(username=self.valid_username).count(), 1)
+    
+    def test_create_missing_username(self):
+        response = self.client.post(self.url, {})
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('username', response.data)
+        self.assertFalse(hasattr(self.user_profile, 'employee_profile'))
+    
+    def test_create_empty_username(self):
+        response = self.client.post(self.url, {'username': ''})
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('username', response.data)
+        self.user_profile.refresh_from_db()
+        self.assertFalse(hasattr(self.user_profile, 'employee_profile'))
+    
+    def test_retrieve_success(self):
+        EmployeeProfile.objects.create(user_profile=self.user_profile, username=self.valid_username)
+        
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], self.valid_username)
+    
+    def test_retrieve_not_exists(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_partial_update_valid(self):
+        EmployeeProfile.objects.create(user_profile=self.user_profile, username=self.valid_username)
+        
+        response = self.client.patch(self.url, {'username': self.valid_new_username})
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], self.valid_new_username)
+        self.user_profile.refresh_from_db()
+        self.assertEqual(self.user_profile.employee_profile.username, self.valid_new_username)
+    
+    def test_partial_update_invalid(self):
+        EmployeeProfile.objects.create(user_profile=self.user_profile, username=self.valid_username)
+        
+        response = self.client.patch(self.url, {'username': self.invalid_username})
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('username' ,response.data)
+        self.user_profile.refresh_from_db()
+        self.assertEqual(self.user_profile.employee_profile.username, self.valid_username)
+    
+    def test_partial_update_missing_username(self):
+        EmployeeProfile.objects.create(user_profile=self.user_profile, username=self.valid_username)
+        
+        response = self.client.patch(self.url, {})
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], self.valid_username)
+        self.user_profile.refresh_from_db()
+        self.assertEqual(self.user_profile.employee_profile.username, self.valid_username)
+    
+    def test_partial_update_empty_username(self):
+        EmployeeProfile.objects.create(user_profile=self.user_profile, username=self.valid_username)
+        
+        response = self.client.patch(self.url, {'username': ''})
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('username', response.data)
+        self.user_profile.refresh_from_db()
+        self.assertEqual(self.user_profile.employee_profile.username, self.valid_username) 
