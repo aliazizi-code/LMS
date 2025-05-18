@@ -397,7 +397,11 @@ class ChangePhoneVerifyView(APIView):
             
             user.phone = data["phone"]
             user.save()
-            return Response({"detail": _("شماره با موفقیت تغییر یافت.")}, status=status.HTTP_200_OK)
+            
+            serializer_data = serializer.data
+            serializer_data['message'] = _("شماره با موفقیت تغییر یافت.")
+            
+            return Response(serializer_data, status=status.HTTP_200_OK)
              
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
