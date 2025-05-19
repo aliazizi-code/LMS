@@ -86,10 +86,9 @@ class TestRequestOTPView(APITestCase):
     @patch('accounts.views.generate_otp_auth_num')
     @patch('accounts.views.send_otp_to_phone_tasks.delay')
     def test_invalid_phone_format(self, mock_send_otp, mock_generate_otp):
-        response = self.client.post(self.url, {"phone": "invalid"})
+        response = self.client.post(self.url, {"phone": "invalid"}, format='json')
         
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("phone", response.data)
+        self.assert_bad_request(response, ['phone'])
     
     def request_at(self, frozen_time):
         with freeze_time(frozen_time):
@@ -1255,4 +1254,57 @@ class TestEmployeeSocialLinkViewSet(APITestCase):
         self.assertEqual(SocialLink.objects.count(), 1)
         self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
         self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])
+
+# endregion
+
+
+class TestSkillListView(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.url = reverse('skill-list')
+        cls.skill1 = Skill.objects.create(name='Python')
+        cls.skill2 = Skill.objects.create(name='Django')
     
+    def test_list_success(self):
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            {'id': self.skill2.id, 'name': 'Django'},
+            {'id': self.skill1.id, 'name': 'Python'},
+        ])
+        self.assertEqual(Skill.objects.all().count(), 2)
+    
+    def test_list_empty(self):
+        Skill.objects.all().delete()
+        
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+
+class TestJobListView(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.url = reverse('job-list')
+        cls.job1 = Job.objects.create(name='Software Engineer')
+        cls.job2 = Job.objects.create(name='Data Scientist')
+    
+    def test_list_success(self):
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [
+            {'id': self.job2.id, 'name': 'Data Scientist'},
+            {'id': self.job1.id, 'name': 'Software Engineer'},
+        ])
+        self.assertEqual(Job.objects.all().count(), 2)
+    
+    def test_list_empty(self):
+        Job.objects.all().delete()
+        
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
