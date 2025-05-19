@@ -35,6 +35,11 @@ class APITestCase(TestCase):
             content=tmp_file.read(),
             content_type='image/jpeg'
         )
+    
+    def assert_bad_request(self, response, expected_fields):
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        for field in expected_fields:
+            self.assertIn(field, response.data)
 
 
 # region Auth
@@ -830,11 +835,6 @@ class TestChangePhoneRequestView(APITestCase):
     def setUp(self):
         self.login(self.user)
     
-    def assert_bad_request(self, response, expected_fields):
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        for field in expected_fields:
-            self.assertIn(field, response.data)
-    
     @override_settings(DEBUG=True)
     @patch('accounts.views.generate_otp_change_phone', return_value=123456)
     @patch('accounts.views.send_otp_to_phone_tasks.delay')
@@ -877,11 +877,6 @@ class TestChangePhoneVerifyView(APITestCase):
     
     def setUp(self):
         self.login(self.user)
-    
-    def assert_bad_request(self, response, expected_fields):
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        for field in expected_fields:
-            self.assertIn(field, response.data)
     
     @override_settings(DEBUG=True)
     @patch('accounts.serializers.verify_otp_change_phone', return_value=True)
@@ -1067,3 +1062,197 @@ class TestEmployeeProfileViewSet(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertNotIn('username', response.data)
+
+
+class TestEmployeeSocialLinkViewSet(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create(phone='+989123456789')
+        cls.user_profile = UserProfile.objects.create(user=cls.user)
+        cls.employee_profile = EmployeeProfile.objects.create(user_profile=cls.user_profile)
+        cls.url = reverse('employee-social-link')
+        
+        cls.valid_data = {
+            'link': 'https://github.com/test/',
+            'social_media_type': SocialLink.SocialMediaType.github,
+        }
+        cls.valid_new_data = {
+            'link': 'https://github.com/new_test/',
+            'social_media_type': SocialLink.SocialMediaType.github,
+        }
+        cls.invalid_data = {
+            'link': 'invalid_link',
+            'social_media_type': 'invalid',
+        }
+    
+    def setUp(self):
+        self.login(self.user)
+    
+    def test_create_success(self):
+        response = self.client.post(self.url, self.valid_data)
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['link'], self.valid_data['link'])
+        self.assertEqual(response.data['social_media_type'], self.valid_data['social_media_type'])
+        self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])   
+    
+    def test_create_invalid_data(self):
+        response = self.client.post(self.url, self.invalid_data)
+        
+        self.assert_bad_request(response, ['link', 'social_media_type'])
+        self.assertEqual(SocialLink.objects.count(), 0)
+        
+    def test_create_missing_link(self):
+        response = self.client.post(self.url, {'social_media_type': SocialLink.SocialMediaType.github,})
+        
+        self.assert_bad_request(response, ['link'])
+        self.assertEqual(SocialLink.objects.count(), 0)
+        
+    def test_create_missing_social_media_type(self):
+        response = self.client.post(self.url, {'link': 'https://github.com/test/'})
+        
+        self.assert_bad_request(response, ['social_media_type'])
+        self.assertEqual(SocialLink.objects.count(), 0)
+    
+    def test_create_empty_link(self):
+        response = self.client.post(self.url, {'link': '', 'social_media_type': self.valid_data['social_media_type']})
+        
+        self.assert_bad_request(response, ['link'])
+        self.assertEqual(SocialLink.objects.count(), 0)
+
+    def test_create_empty_social_media_type(self):
+        response = self.client.post(self.url, {'link': self.valid_data['link'], 'social_media_type': ''})
+        
+        self.assert_bad_request(response, ['social_media_type'])
+        self.assertEqual(SocialLink.objects.count(), 0)
+    
+    def test_create_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.post(self.url, self.valid_data)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertNotIn('link', response.data)
+        self.assertNotIn('social_media_type', response.data)
+        self.assertEqual(SocialLink.objects.count(), 0)
+    
+    def test_create_already_exist(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        
+        response = self.client.post(self.url, self.valid_data)
+        self.assert_bad_request(response, ['link'])
+        self.assertEqual(SocialLink.objects.count(), 1)
+        self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])
+    
+    def test_list_success(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [self.valid_data])
+    
+    def test_list_not_exist(self):
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+    
+    def test_list_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.get(self.url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertNotIn('link', response.data)
+        self.assertNotIn('social_media_type', response.data)
+
+    def test_partial_update_success(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        
+        response = self.client.patch(self.url, self.valid_new_data)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['link'], self.valid_new_data['link'])
+        self.assertEqual(response.data['social_media_type'], self.valid_new_data['social_media_type'])
+        self.assertEqual(SocialLink.objects.count(), 1)
+        self.assertEqual(SocialLink.objects.first().link, self.valid_new_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_new_data['social_media_type'])
+    
+    def test_partial_update_invalid_link(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        invalid_data = {
+            'link': 'invalid_link',
+            'social_media_type': self.valid_new_data['social_media_type'],
+        }
+        
+        response = self.client.patch(self.url, invalid_data)
+        
+        self.assert_bad_request(response, ['link'])
+        self.assertEqual(SocialLink.objects.count(), 1)
+        self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])
+    
+    def test_partial_update_invalid_social_media_type(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        invalid_data = {
+            'link': self.valid_new_data['link'],
+            'social_media_type': 'invalid_link',
+        }
+        
+        response = self.client.patch(self.url, invalid_data)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(SocialLink.objects.count(), 1)
+        self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])
+
+    def test_partial_update_missing_link(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        
+        response = self.client.patch(self.url, {'social_media_type': self.valid_new_data['social_media_type']})
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['link'], self.valid_data['link'])
+        self.assertEqual(response.data['social_media_type'], self.valid_data['social_media_type'])
+        self.assertEqual(SocialLink.objects.count(), 1)
+        self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])
+
+    def test_partial_update_missing_social_media_type(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        
+        response = self.client.patch(self.url, { 'link': self.valid_new_data['link']})
+        
+        self.assert_bad_request(response, ['social_media_type'])
+        self.assertEqual(SocialLink.objects.count(), 1)
+        self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])
+
+    def test_partial_update_without_login(self):
+        self.client.cookies['access_token'] = 'invalid.token.here'
+        response = self.client.patch(self.url, self.valid_new_data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertNotIn('link', response.data)
+        self.assertNotIn('social_media_type', response.data)
+    
+    def test_partial_update_empty_link(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        
+        response = self.client.patch(self.url, {'social_media_type': self.valid_new_data['social_media_type'], 'link': ''})
+        
+        self.assert_bad_request(response, ['link'])
+        self.assertEqual(SocialLink.objects.count(), 1)
+        self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])
+
+    def test_partial_update_empty_social_media_type(self):
+        SocialLink.objects.create(**self.valid_data, employee_profile=self.employee_profile)
+        
+        response = self.client.patch(self.url, {'social_media_type': '', 'link': self.valid_new_data['link']})
+        
+        self.assert_bad_request(response, ['social_media_type'])
+        self.assertEqual(SocialLink.objects.count(), 1)
+        self.assertEqual(SocialLink.objects.first().link, self.valid_data['link'])
+        self.assertEqual(SocialLink.objects.first().social_media_type, self.valid_data['social_media_type'])
+    
